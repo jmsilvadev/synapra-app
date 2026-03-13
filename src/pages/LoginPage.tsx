@@ -2,9 +2,12 @@ import React from "react";
 import { Alert, Box, Button, Typography } from "@mui/material";
 import { Google as GoogleIcon } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
+import LanguageSwitcher from "../components/LanguageSwitcher";
+import { useI18n } from "../i18n";
 
 const LoginPage: React.FC = () => {
   const { loginWithGoogle, loginError } = useAuth();
+  const { t } = useI18n();
 
   return (
     <Box
@@ -18,6 +21,9 @@ const LoginPage: React.FC = () => {
         px: 2,
       }}
     >
+      <Box sx={{ position: "absolute", top: 20, right: 20 }}>
+        <LanguageSwitcher compact />
+      </Box>
       <Box
         sx={{
           p: { xs: 3, sm: 2 },
@@ -40,7 +46,7 @@ const LoginPage: React.FC = () => {
           }}
         />
         <Typography variant="body1" align="center" color="text.secondary" sx={{ mb: 3 }}>
-          Faça login para aceder ao painel da sua organização
+          {t("login.subtitle")}
         </Typography>
         {loginError && (
           <Alert severity="error" sx={{ mb: 3 }}>
@@ -65,7 +71,7 @@ const LoginPage: React.FC = () => {
                 },
               }}
             >
-              Entrar com Google
+              {t("login.google")}
             </Button>
           </Box>
         </Box>

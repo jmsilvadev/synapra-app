@@ -18,6 +18,7 @@ import {
   Receipt,
 } from "@mui/icons-material";
 import { Link, useLocation } from "react-router-dom";
+import { useI18n } from "../i18n";
 
 const DRAWER_WIDTH = 280;
 const MINI_DRAWER_WIDTH = 80;
@@ -27,18 +28,18 @@ interface SidebarProps {
   setExpanded: (expanded: boolean) => void;
 }
 
-const menuItems = [
-  { text: "Dashboard", icon: <Dashboard />, path: "/dashboard" },
-  { text: "Regras & Políticas", icon: <Policy />, path: "/rules-policies" },
-  { text: "API", icon: <Api />, path: "/api" },
-  { text: "Logs", icon: <Receipt />, path: "/logs" },
-  { text: "Configurações", icon: <Settings />, path: "/settings" },
-];
-
 const Sidebar: React.FC<SidebarProps> = ({ expanded, setExpanded }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const location = useLocation();
+  const { t } = useI18n();
+  const menuItems = [
+    { text: t("sidebar.dashboard"), icon: <Dashboard />, path: "/dashboard" },
+    { text: t("sidebar.rules"), icon: <Policy />, path: "/rules-policies" },
+    { text: t("sidebar.api"), icon: <Api />, path: "/api" },
+    { text: t("sidebar.logs"), icon: <Receipt />, path: "/logs" },
+    { text: t("sidebar.settings"), icon: <Settings />, path: "/settings" },
+  ];
 
   return (
     <Drawer

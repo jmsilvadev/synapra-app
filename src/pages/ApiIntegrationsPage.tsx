@@ -23,11 +23,13 @@ import {
   getClientApiKeys,
   revokeClientApiKey,
 } from "../services/adminService";
+import { useI18n } from "../i18n";
 import { extractErrorMessage } from "../services/apiClient";
 import type { ApiKey, ApiKeyCreateResponse } from "../types/admin";
 
 const ApiIntegrationsPage: React.FC = () => {
-  const { currentClientId } = useAuth();
+  const { currentOrganizationId } = useAuth();
+  const { t } = useI18n();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [createdKey, setCreatedKey] = useState<ApiKeyCreateResponse | null>(null);
   const [label, setLabel] = useState("agent");
@@ -39,7 +41,7 @@ const ApiIntegrationsPage: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
 
   const loadKeys = async () => {
-    if (!currentClientId) {
+    if (!currentOrganizationId) {
       setKeys([]);
       setLoading(false);
       return;
@@ -47,9 +49,9 @@ const ApiIntegrationsPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      setKeys(await getClientApiKeys(currentClientId));
+      setKeys(await getClientApiKeys(currentOrganizationId));
     } catch (err) {
-      setError(extractErrorMessage(err, "Falha ao carregar API keys"));
+      setError(extractErrorMessage(err, t("api.load_error")));
     } finally {
       setLoading(false);
     }
@@ -57,11 +59,11 @@ const ApiIntegrationsPage: React.FC = () => {
 
   useEffect(() => {
     void loadKeys();
-  }, [currentClientId]);
+  }, [currentOrganizationId]);
 
   const handleCreate = async () => {
-    if (!currentClientId || !label.trim()) {
-      setError("Informe um nome para a API key.");
+    if (!currentOrganizationId || !label.trim()) {
+      setError(t("api.validation.label"));
       return;
     }
 
@@ -69,32 +71,32 @@ const ApiIntegrationsPage: React.FC = () => {
     setError(null);
     setSuccess(null);
     try {
-      const key = await createClientApiKey(currentClientId, label.trim());
+      const key = await createClientApiKey(currentOrganizationId, label.trim());
       setCreatedKey(key);
       setOpenCreate(false);
       setLabel("agent");
-      setSuccess("API key criada com sucesso. Guarde o segredo agora, ele só é exibido uma vez.");
+      setSuccess(t("api.success.created"));
       await loadKeys();
     } catch (err) {
-      setError(extractErrorMessage(err, "Falha ao criar API key"));
+      setError(extractErrorMessage(err, t("api.generate")));
     } finally {
       setCreating(false);
     }
   };
 
   const handleRevoke = async (keyId: string) => {
-    if (!currentClientId) {
+    if (!currentOrganizationId) {
       return;
     }
     setRevokingKeyId(keyId);
     setError(null);
     setSuccess(null);
     try {
-      await revokeClientApiKey(currentClientId, keyId);
-      setSuccess("API key revogada com sucesso.");
+      await revokeClientApiKey(currentOrganizationId, keyId);
+      setSuccess(t("api.success.revoked"));
       await loadKeys();
     } catch (err) {
-      setError(extractErrorMessage(err, "Falha ao revogar API key"));
+      setError(extractErrorMessage(err, t("api.revoke")));
     } finally {
       setRevokingKeyId(null);
     }
@@ -106,9 +108,9 @@ const ApiIntegrationsPage: React.FC = () => {
     }
     try {
       await navigator.clipboard.writeText(createdKey.secret);
-      setSuccess("Segredo copiado para a área de transferência.");
+      setSuccess(t("api.success.copied"));
     } catch {
-      setError("Não foi possível copiar o segredo automaticamente.");
+      setError(t("api.error.copy"));
     }
   };
 
@@ -118,11 +120,11 @@ const ApiIntegrationsPage: React.FC = () => {
         <div>
           <Typography variant="h4">API</Typography>
           <Typography color="text.secondary">
-            Gere as API keys que a sua organização vai usar para autenticar agentes no Synapra.
+            {t("api.subtitle")}
           </Typography>
         </div>
-        <Button variant="contained" onClick={() => setOpenCreate(true)} disabled={!currentClientId}>
-          Gerar API key
+        <Button variant="contained" onClick={() => setOpenCreate(true)} disabled={!currentOrganizationId}>
+          {t("api.generate")}
         </Button>
       </Box>
 
@@ -141,9 +143,9 @@ const ApiIntegrationsPage: React.FC = () => {
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Stack spacing={1}>
-              <Typography variant="h6">Nova API key gerada</Typography>
+              <Typography variant="h6">{t("api.new_key_title")}</Typography>
               <Typography color="text.secondary">
-                Este segredo só aparece agora. Depois disso, apenas o preview continua visível.
+                {t("api.new_key_desc")}
               </Typography>
               <TextField
                 fullWidth
@@ -154,10 +156,10 @@ const ApiIntegrationsPage: React.FC = () => {
           </CardContent>
           <CardActions sx={{ px: 2, pb: 2 }}>
             <Button variant="outlined" onClick={handleCopySecret}>
-              Copiar segredo
+              {t("api.copy_secret")}
             </Button>
             <Button onClick={() => setCreatedKey(null)}>
-              Fechar
+              {t("common.close")}
             </Button>
           </CardActions>
         </Card>
@@ -166,9 +168,9 @@ const ApiIntegrationsPage: React.FC = () => {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Stack spacing={1}>
-            <Typography variant="h6">Como usar</Typography>
+            <Typography variant="h6">{t("api.how_to_use")}</Typography>
             <Typography color="text.secondary">
-              Use esta chave no header `X-API-Key` quando os agentes consultarem ou sincronizarem contexto no Synapra.
+              {t("api.how_to_use_desc")}
             </Typography>
           </Stack>
         </CardContent>
@@ -176,16 +178,16 @@ const ApiIntegrationsPage: React.FC = () => {
 
       {loading ? (
         <CircularProgress />
-      ) : !currentClientId ? (
-        <Alert severity="info">Selecione um cliente para gerir as API keys da organização.</Alert>
+      ) : !currentOrganizationId ? (
+        <Alert severity="info">{t("api.no_client")}</Alert>
       ) : (
         <Stack spacing={2}>
           {keys.length === 0 ? (
             <Card>
               <CardContent>
-                <Typography variant="h6">Nenhuma API key criada</Typography>
+                <Typography variant="h6">{t("api.empty_title")}</Typography>
                 <Typography color="text.secondary">
-                  Gere a primeira API key da organização para permitir acesso dos agentes ao Synapra.
+                  {t("api.empty_desc")}
                 </Typography>
               </CardContent>
             </Card>
@@ -196,13 +198,13 @@ const ApiIntegrationsPage: React.FC = () => {
                   <Stack spacing={1}>
                     <Typography variant="h6">{key.label}</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Preview: {key.preview || "Sem preview"}
+                      {t("api.preview")}: {key.preview || t("api.no_preview")}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Criada em: {key.created_at || "-"}
+                      {t("api.created_at")}: {key.created_at || "-"}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Estado: {key.revoked_at ? `Revogada em ${key.revoked_at}` : "Ativa"}
+                      {t("api.status")}: {key.revoked_at ? t("api.revoked_at", { date: key.revoked_at }) : t("api.active")}
                     </Typography>
                   </Stack>
                 </CardContent>
@@ -213,7 +215,7 @@ const ApiIntegrationsPage: React.FC = () => {
                     onClick={() => void handleRevoke(key.id)}
                     disabled={Boolean(key.revoked_at) || revokingKeyId === key.id}
                   >
-                    {revokingKeyId === key.id ? "A revogar..." : "Revogar"}
+                    {revokingKeyId === key.id ? t("api.revoking") : t("api.revoke")}
                   </Button>
                 </CardActions>
               </Card>
@@ -223,26 +225,26 @@ const ApiIntegrationsPage: React.FC = () => {
       )}
 
       <Dialog open={openCreate} onClose={() => setOpenCreate(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Gerar API key</DialogTitle>
+        <DialogTitle>{t("api.dialog_title")}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Typography color="text.secondary">
-              Dê um nome claro para identificar onde esta chave será usada.
+              {t("api.dialog_desc")}
             </Typography>
             <TextField
               autoFocus
               fullWidth
-              label="Nome da API key"
+              label={t("api.dialog_label")}
               value={label}
               onChange={(event) => setLabel(event.target.value)}
-              placeholder="ex: cursor-prod"
+              placeholder={t("api.dialog_placeholder")}
             />
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenCreate(false)}>Cancelar</Button>
+          <Button onClick={() => setOpenCreate(false)}>{t("common.cancel")}</Button>
           <Button onClick={handleCreate} variant="contained" disabled={creating}>
-            {creating ? "A gerar..." : "Gerar"}
+            {creating ? t("api.dialog_generating") : t("api.dialog_generate")}
           </Button>
         </DialogActions>
       </Dialog>

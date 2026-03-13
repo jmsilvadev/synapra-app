@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { Alert, Card, CardContent, CircularProgress, Container, Stack, Typography } from "@mui/material";
 import { useAuth } from "../context/AuthContext";
+import { useI18n } from "../i18n";
 import { getAuditLogs } from "../services/adminService";
 import { extractErrorMessage } from "../services/apiClient";
 import type { AuditLogRecord } from "../types/admin";
 
 const LogsPage: React.FC = () => {
   const { currentOrganizationId } = useAuth();
+  const { t } = useI18n();
   const [logs, setLogs] = useState<AuditLogRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,16 +20,17 @@ const LogsPage: React.FC = () => {
     }
     getAuditLogs(currentOrganizationId)
       .then(setLogs)
-      .catch((err) => setError(extractErrorMessage(err, "Falha ao carregar logs")))
+      .catch((err) => setError(extractErrorMessage(err, t("logs.load_error"))))
       .finally(() => setLoading(false));
   }, [currentOrganizationId]);
 
   return (
     <Container>
-      <Typography variant="h4" sx={{ mb: 3 }}>Logs</Typography>
+      <Typography variant="h4" sx={{ mb: 3 }}>{t("logs.title")}</Typography>
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
       {loading ? <CircularProgress /> : (
         <Stack spacing={2}>
+          {logs.length === 0 && <Alert severity="info">{t("logs.empty")}</Alert>}
           {logs.map((log) => (
             <Card key={log.id}>
               <CardContent>

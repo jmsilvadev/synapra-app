@@ -7,18 +7,25 @@ import {
   CardContent,
   CircularProgress,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   MenuItem,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 import { clearPendingSignupContext, loadPendingSignupContext } from "../context/AuthContext";
+import { useI18n } from "../i18n";
 import { extractErrorMessage } from "../services/apiClient";
 import { getPublicPlans, startRegistration } from "../services/publicService";
 import type { Plan } from "../types/admin";
 
 const SignupPage: React.FC = () => {
+  const { t, locale } = useI18n();
   const pendingSignup = loadPendingSignupContext();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [organizationName, setOrganizationName] = useState("");
@@ -27,7 +34,8 @@ const SignupPage: React.FC = () => {
   const [planCode, setPlanCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [confirmedEmail, setConfirmedEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -38,19 +46,18 @@ const SignupPage: React.FC = () => {
           setPlanCode(items[0].code);
         }
       })
-      .catch((err) => setError(extractErrorMessage(err, "Falha ao carregar planos")))
+      .catch((err) => setError(extractErrorMessage(err, t("signup.load_error"))))
       .finally(() => setLoading(false));
-  }, []);
+  }, [t]);
 
   const handleSubmit = async () => {
     if (!organizationName.trim() || !email.trim() || !planCode.trim()) {
-      setError("Preencha organização, email e plano.");
+      setError(t("signup.validation.required"));
       return;
     }
 
     setSubmitting(true);
     setError(null);
-    setSuccess(null);
     try {
       const response = await startRegistration({
         organization_name: organizationName.trim(),
@@ -62,31 +69,38 @@ const SignupPage: React.FC = () => {
           contact_name: contactName.trim(),
         },
       });
+      if (!response.email_sent) {
+        setError(t("signup.backend_email_missing"));
+        return;
+      }
       clearPendingSignupContext();
-      setSuccess(`Enviámos um email para ${response.email}. Abra esse link para concluir a criação da organização e da subscrição.`);
+      setConfirmedEmail(response.email);
+      setEmailDialogOpen(true);
     } catch (err) {
-      setError(extractErrorMessage(err, "Falha ao iniciar o registo"));
+      setError(extractErrorMessage(err, t("signup.submit_error")));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Container maxWidth="sm" sx={{ py: 8 }}>
+    <Container maxWidth="sm" sx={{ py: 8, position: "relative" }}>
+      <Box sx={{ position: "absolute", top: 16, right: 16 }}>
+        <LanguageSwitcher compact />
+      </Box>
       <Card>
         <CardContent>
           <Stack spacing={3}>
             <div>
               <Typography variant="h4" sx={{ mb: 1 }}>
-                Criar organização
+                {t("signup.title")}
               </Typography>
               <Typography color="text.secondary">
-                O seu utilizador ainda não pertence a nenhuma organização. Complete o registo e enviaremos um email de verificação para continuar o onboarding.
+                {t("signup.subtitle")}
               </Typography>
             </div>
 
             {error && <Alert severity="error">{error}</Alert>}
-            {success && <Alert severity="success">{success}</Alert>}
 
             {loading ? (
               <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
@@ -95,47 +109,66 @@ const SignupPage: React.FC = () => {
             ) : (
               <Stack spacing={2}>
                 <TextField
-                  label="Nome da organização"
+                  label={t("signup.organization_name")}
                   value={organizationName}
                   onChange={(event) => setOrganizationName(event.target.value)}
                   fullWidth
                 />
                 <TextField
-                  label="Email"
+                  label={t("signup.email")}
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   fullWidth
                 />
                 <TextField
-                  label="Nome do contacto"
+                  label={t("signup.contact_name")}
                   value={contactName}
                   onChange={(event) => setContactName(event.target.value)}
                   fullWidth
                 />
                 <TextField
                   select
-                  label="Plano"
+                  label={t("signup.plan")}
                   value={planCode}
                   onChange={(event) => setPlanCode(event.target.value)}
                   fullWidth
                 >
                   {plans.map((plan) => (
                     <MenuItem key={plan.code} value={plan.code}>
-                      {plan.name} • {(plan.price_cents / 100).toFixed(2)} {plan.currency_code}
+                      {plan.name} • {new Intl.NumberFormat(locale, { style: "currency", currency: plan.currency_code }).format(plan.price_cents / 100)}
                     </MenuItem>
                   ))}
                 </TextField>
                 <Button variant="contained" onClick={handleSubmit} disabled={submitting}>
-                  {submitting ? "A enviar..." : "Enviar email de onboarding"}
+                  {submitting ? t("signup.submitting") : t("signup.submit")}
                 </Button>
                 <Button component={RouterLink} to="/" variant="text">
-                  Voltar ao login
+                  {t("signup.back_to_login")}
                 </Button>
               </Stack>
             )}
           </Stack>
         </CardContent>
       </Card>
+
+      <Dialog open={emailDialogOpen} fullWidth maxWidth="sm">
+        <DialogTitle>{t("signup.dialog_title")}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography>
+              {t("signup.dialog_intro", { email: confirmedEmail })}
+            </Typography>
+            <Typography color="text.secondary">
+              {t("signup.dialog_desc")}
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button component={RouterLink} to="/" variant="contained" onClick={() => setEmailDialogOpen(false)}>
+            {t("signup.back_to_login")}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

@@ -9,6 +9,7 @@ import React, {
 import axios from "axios";
 import { GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import { auth } from "../service/firebase";
+import { getStoredLanguage, translate } from "../i18n";
 import { extractErrorMessage, setAdminToken } from "../services/apiClient";
 import {
   getClients,
@@ -96,10 +97,22 @@ export function clearPendingSignupContext() {
 }
 
 function normalizeSession(session: AdminSession): AdminSession {
+  const memberships = Array.isArray(session.memberships) ? session.memberships : [];
+  const primaryMembership = memberships.find((membership) => membership.active) || memberships[0];
+
   return {
     ...session,
-    memberships: Array.isArray(session.memberships) ? session.memberships : [],
+    user: {
+      ...session.user,
+      organization_id: session.user.organization_id || primaryMembership?.organization_id || "",
+      organization_name: session.user.organization_name || primaryMembership?.organization_name,
+    },
+    memberships,
   };
+}
+
+function tr(key: string, vars?: Record<string, string | number>) {
+  return translate(getStoredLanguage(), key, vars);
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -128,6 +141,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const normalizedSession = normalizeSession(nextSession);
+      if (!normalizedSession.user.organization_id) {
+        setSession(null);
+        setAdminToken(null);
+        clearStoredSession();
+        setCurrentOrganizationIdState(null);
+        setLoginError(tr("auth.invalid_session"));
+        return;
+      }
       setSession(normalizedSession);
 
       if (normalizedSession.token) {
@@ -136,12 +157,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       persistSession(normalizedSession);
 
       const storedOrganizationId = localStorage.getItem(ORGANIZATION_KEY);
-      const firstMembership = normalizedSession.memberships.find((membership) => membership.active);
-      const validStoredMembership = normalizedSession.memberships.find(
-        (membership) => membership.organization_id === storedOrganizationId && membership.active
-      );
       const nextOrganizationId =
-        validStoredMembership?.organization_id || firstMembership?.organization_id || null;
+        storedOrganizationId === normalizedSession.user.organization_id
+          ? storedOrganizationId
+          : normalizedSession.user.organization_id;
       setCurrentOrganizationIdState(nextOrganizationId);
       if (nextOrganizationId) {
         localStorage.setItem(ORGANIZATION_KEY, nextOrganizationId);
@@ -239,7 +258,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         window.location.assign("/signup");
         return;
       }
-      setLoginError(extractErrorMessage(error, "Falha ao autenticar com Google"));
+      setLoginError(extractErrorMessage(error, tr("auth.google_error")));
     }
   }, [applySession]);
 

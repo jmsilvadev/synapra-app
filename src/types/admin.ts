@@ -1,5 +1,7 @@
 export type AdminUser = {
   id: string;
+  organization_id: string;
+  organization_name?: string;
   provider: string;
   external_subject?: string;
   email: string;
@@ -23,7 +25,7 @@ export type AdminSession = {
   token?: string;
   expires_at: string;
   user: AdminUser;
-  memberships: Membership[];
+  memberships?: Membership[];
 };
 
 export type Client = {
@@ -68,19 +70,19 @@ export type Plan = {
 };
 
 export type OrganizationRules = {
-  organization_id?: string;
+  organization_id: string;
   rules_markdown: string;
 };
 
 export type WorkspaceRules = {
-  organization_id?: string;
+  organization_id: string;
   project_id: string;
   namespace: string;
   rules_markdown: string;
 };
 
 export type WorkspaceRuleSummary = {
-  organization_id?: string;
+  organization_id: string;
   project_id: string;
   namespace: string;
   created_at?: string;
@@ -96,7 +98,7 @@ export type AuditLogRecord = {
 };
 
 export type OrganizationSettings = {
-  organization_id?: string;
+  organization_id: string;
   website_url?: string;
   support_email?: string;
   default_project_id?: string;

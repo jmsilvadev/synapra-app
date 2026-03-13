@@ -2,6 +2,7 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider, createTheme, CssBaseline } from "@mui/material";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { I18nProvider, useI18n } from "./i18n";
 import LoginPage from "./pages/LoginPage";
 import DashboardLayout from "./components/DashboardLayout";
 import DashboardPage from "./pages/DashboardPage";
@@ -10,6 +11,7 @@ import LogsPage from "./pages/LogsPage";
 import SettingsPage from "./pages/SettingsPage";
 import ApiIntegrationsPage from "./pages/ApiIntegrationsPage";
 import SignupPage from "./pages/SignupPage";
+import SignupVerifyPage from "./pages/SignupVerifyPage";
 
 const theme = createTheme({
   palette: {
@@ -140,15 +142,17 @@ const theme = createTheme({
 
 const AppRoutes: React.FC = () => {
   const { user, initializing } = useAuth();
+  const { t } = useI18n();
 
   if (initializing) {
-    return <div>Carregando...</div>;
+    return <div>{t("app.loading")}</div>;
   }
 
   if (!user) {
     return (
       <Routes>
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/signup/verify" element={<SignupVerifyPage />} />
         <Route path="*" element={<LoginPage />} />
       </Routes>
     );
@@ -165,6 +169,7 @@ const AppRoutes: React.FC = () => {
         <Route path="settings" element={<SettingsPage />} />
       </Route>
       <Route path="signup" element={<Navigate to="/dashboard" replace />} />
+      <Route path="signup/verify" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
@@ -174,9 +179,11 @@ export default function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <I18nProvider>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </I18nProvider>
     </ThemeProvider>
   );
 }

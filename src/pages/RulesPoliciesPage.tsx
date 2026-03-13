@@ -23,6 +23,7 @@ import {
   updateOrganizationRules,
   updateWorkspaceRules,
 } from "../services/adminService";
+import { useI18n } from "../i18n";
 import { extractErrorMessage } from "../services/apiClient";
 import type { WorkspaceRuleSummary } from "../types/admin";
 
@@ -32,6 +33,7 @@ function workspaceKey(projectId: string, namespace: string) {
 
 const RulesPoliciesPage: React.FC = () => {
   const { currentOrganizationId } = useAuth();
+  const { t } = useI18n();
   const [organizationRules, setOrganizationRules] = useState("");
   const [workspaceRules, setWorkspaceRules] = useState("");
   const [workspaceList, setWorkspaceList] = useState<WorkspaceRuleSummary[]>([]);
@@ -89,7 +91,7 @@ const RulesPoliciesPage: React.FC = () => {
         setWorkspaceRules("");
       }
     } catch (err) {
-      setError(extractErrorMessage(err, "Falha ao carregar regras"));
+      setError(extractErrorMessage(err, t("rules.load_error")));
     } finally {
       setLoading(false);
     }
@@ -131,8 +133,8 @@ const RulesPoliciesPage: React.FC = () => {
     if (!currentOrganizationId) {
       return;
     }
-    if (!projectId.trim() || !namespace.trim()) {
-      setError("Informe project_id e namespace para consultar as regras do workspace.");
+      if (!projectId.trim() || !namespace.trim()) {
+      setError(t("rules.validation.workspace_lookup"));
       setSuccess(null);
       return;
     }
@@ -140,7 +142,7 @@ const RulesPoliciesPage: React.FC = () => {
     setError(null);
     setSuccess(null);
     await loadWorkspaceRules(currentOrganizationId, projectId, namespace);
-    setSuccess("Regras do workspace carregadas do Postgres.");
+    setSuccess(t("rules.success.workspace_loaded"));
   };
 
   const handleSaveOrganizationRules = async () => {
@@ -148,7 +150,7 @@ const RulesPoliciesPage: React.FC = () => {
       return;
     }
     if (!organizationRules.trim()) {
-      setError("As regras da organização não podem ficar vazias.");
+      setError(t("rules.validation.organization_empty"));
       setSuccess(null);
       return;
     }
@@ -159,9 +161,9 @@ const RulesPoliciesPage: React.FC = () => {
     try {
       const response = await updateOrganizationRules(currentOrganizationId, organizationRules);
       setOrganizationRules(response.rules_markdown || "");
-      setSuccess("Regras da organização gravadas no Postgres e disponíveis para o Synapra.");
+      setSuccess(t("rules.success.organization_saved"));
     } catch (err) {
-      setError(extractErrorMessage(err, "Falha ao salvar regras da organização"));
+      setError(extractErrorMessage(err, t("rules.organization_save")));
     } finally {
       setSavingOrganization(false);
     }
@@ -174,12 +176,12 @@ const RulesPoliciesPage: React.FC = () => {
     const trimmedProjectId = projectId.trim();
     const trimmedNamespace = namespace.trim();
     if (!trimmedProjectId || !trimmedNamespace) {
-      setError("Informe project_id e namespace antes de salvar as regras do workspace.");
+      setError(t("rules.validation.workspace_identity"));
       setSuccess(null);
       return;
     }
     if (!workspaceRules.trim()) {
-      setError("As regras do workspace não podem ficar vazias.");
+      setError(t("rules.validation.workspace_empty"));
       setSuccess(null);
       return;
     }
@@ -204,9 +206,9 @@ const RulesPoliciesPage: React.FC = () => {
           { project_id: trimmedProjectId, namespace: trimmedNamespace },
         ]);
       }
-      setSuccess("Regras do workspace gravadas no Postgres e usadas no render do Synapra.");
+      setSuccess(t("rules.success.workspace_saved"));
     } catch (err) {
-      setError(extractErrorMessage(err, "Falha ao salvar regras do workspace"));
+      setError(extractErrorMessage(err, t("rules.save_workspace")));
     } finally {
       setSavingWorkspace(false);
     }
@@ -215,10 +217,10 @@ const RulesPoliciesPage: React.FC = () => {
   return (
     <Container>
       <Typography variant="h4" sx={{ mb: 3 }}>
-        Regras & Políticas
+        {t("rules.title")}
       </Typography>
       <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Estas regras ficam persistidas no Postgres e entram no contexto que o Synapra entrega aos agentes.
+        {t("rules.subtitle")}
       </Typography>
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
@@ -234,7 +236,7 @@ const RulesPoliciesPage: React.FC = () => {
         <CircularProgress />
       ) : !currentOrganizationId ? (
         <Alert severity="info">
-          Nenhuma organização associada ao utilizador autenticado.
+          {t("rules.no_org")}
         </Alert>
       ) : (
         <Stack spacing={2}>
@@ -256,20 +258,20 @@ const RulesPoliciesPage: React.FC = () => {
                 >
                   <Tab
                     value="organization"
-                    label="Organização"
+                    label={t("rules.organization_tab")}
                   />
                   <Tab
                     value="workspaces"
-                    label={`Workspaces (${workspaceList.length})`}
+                    label={t("rules.workspaces_tab", { count: workspaceList.length })}
                   />
                 </Tabs>
 
                 {activeTab === "organization" ? (
                   <Stack spacing={2}>
                     <div>
-                      <Typography variant="h6">Regras da organização</Typography>
+                      <Typography variant="h6">{t("rules.organization_title")}</Typography>
                       <Typography color="text.secondary">
-                        Estas regras valem para todos os workspaces da organização.
+                        {t("rules.organization_desc")}
                       </Typography>
                     </div>
                     <Stack direction="row" spacing={1}>
@@ -278,7 +280,7 @@ const RulesPoliciesPage: React.FC = () => {
                         onClick={() => currentOrganizationId && void loadRulesData(currentOrganizationId)}
                         disabled={loading}
                       >
-                        Recarregar
+                        {t("common.reload")}
                       </Button>
                     </Stack>
                     <TextField
@@ -287,7 +289,7 @@ const RulesPoliciesPage: React.FC = () => {
                       fullWidth
                       value={organizationRules}
                       onChange={(event) => setOrganizationRules(event.target.value)}
-                      placeholder="Escreva aqui as regras globais da organização..."
+                      placeholder={t("rules.organization_placeholder")}
                     />
                     <div>
                       <Button
@@ -295,16 +297,16 @@ const RulesPoliciesPage: React.FC = () => {
                         onClick={handleSaveOrganizationRules}
                         disabled={savingOrganization}
                       >
-                        {savingOrganization ? "A guardar..." : "Salvar regras da organização"}
+                        {savingOrganization ? t("rules.organization_saving") : t("rules.organization_save")}
                       </Button>
                     </div>
                   </Stack>
                 ) : (
                   <Stack spacing={2}>
                     <div>
-                      <Typography variant="h6">Regras dos workspaces</Typography>
+                      <Typography variant="h6">{t("rules.workspaces_title")}</Typography>
                       <Typography color="text.secondary">
-                        Cada organização pode ter vários workspaces. Selecione um existente ou crie um novo.
+                        {t("rules.workspaces_desc")}
                       </Typography>
                     </div>
                     <Grid container spacing={2}>
@@ -319,28 +321,28 @@ const RulesPoliciesPage: React.FC = () => {
                                 spacing={2}
                               >
                                 <div>
-                                  <Typography variant="subtitle1">Lista de workspaces</Typography>
+                                  <Typography variant="subtitle1">{t("rules.workspace_list")}</Typography>
                                   <Typography variant="body2" color="text.secondary">
-                                    {workspaceList.length} cadastrado(s)
+                                    {t("rules.workspace_registered", { count: workspaceList.length })}
                                   </Typography>
                                 </div>
                                 <Stack direction="row" spacing={1}>
                                   <Button variant="outlined" size="small" onClick={handleCreateWorkspaceDraft}>
-                                    Novo
+                                    {t("common.new")}
                                   </Button>
                                   <Button
                                     variant="outlined"
                                     size="small"
                                     onClick={() => currentOrganizationId && void refreshWorkspaceList(currentOrganizationId)}
                                   >
-                                    Recarregar
+                                    {t("common.reload")}
                                   </Button>
                                 </Stack>
                               </Stack>
                               <Divider />
                               {workspaceList.length === 0 ? (
                                 <Typography variant="body2" color="text.secondary">
-                                  Nenhum workspace configurado ainda.
+                                  {t("rules.workspace_empty")}
                                 </Typography>
                               ) : (
                                 <Stack spacing={1}>
@@ -386,22 +388,22 @@ const RulesPoliciesPage: React.FC = () => {
                             <CardContent>
                               <Stack spacing={2}>
                                 <div>
-                                  <Typography variant="subtitle1">Editor do workspace</Typography>
+                                  <Typography variant="subtitle1">{t("rules.workspace_editor")}</Typography>
                                   <Typography variant="body2" color="text.secondary">
-                                    Defina o par `project_id` + `namespace` e edite as regras do workspace selecionado.
+                                    {t("rules.workspace_editor_desc")}
                                   </Typography>
                                 </div>
                                 <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                                   <TextField
                                     fullWidth
-                                    label="Project ID"
+                                    label={t("rules.project_id")}
                                     value={projectId}
                                     onChange={(event) => setProjectId(event.target.value)}
                                     placeholder="ex: synapra-app"
                                   />
                                   <TextField
                                     fullWidth
-                                    label="Namespace"
+                                    label={t("rules.namespace")}
                                     value={namespace}
                                     onChange={(event) => setNamespace(event.target.value)}
                                     placeholder="ex: workspace"
@@ -413,14 +415,14 @@ const RulesPoliciesPage: React.FC = () => {
                                     onClick={handleLoadWorkspaceRules}
                                     disabled={loadingWorkspace}
                                   >
-                                    {loadingWorkspace ? "A carregar..." : "Carregar regras"}
+                                    {loadingWorkspace ? t("rules.loading_workspace") : t("rules.load_workspace")}
                                   </Button>
                                   <Button
                                     variant="contained"
                                     onClick={handleSaveWorkspaceRules}
                                     disabled={savingWorkspace}
                                   >
-                                    {savingWorkspace ? "A guardar..." : "Salvar workspace"}
+                                    {savingWorkspace ? t("rules.saving_workspace") : t("rules.save_workspace")}
                                   </Button>
                                 </Stack>
                               </Stack>
@@ -432,7 +434,7 @@ const RulesPoliciesPage: React.FC = () => {
                             fullWidth
                             value={workspaceRules}
                             onChange={(event) => setWorkspaceRules(event.target.value)}
-                            placeholder="Escreva aqui as regras específicas deste workspace..."
+                            placeholder={t("rules.workspace_placeholder")}
                           />
                         </Stack>
                       </Grid>

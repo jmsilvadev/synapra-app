@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { Alert, Card, CardContent, Chip, CircularProgress, Container, Stack, Typography } from "@mui/material";
 import { useAuth } from "../context/AuthContext";
+import { useI18n } from "../i18n";
 import { getBillingProfile, getInvoices, getOrganizationSettings, getSubscription } from "../services/adminService";
 import { extractErrorMessage } from "../services/apiClient";
 import type { BillingProfile, InvoiceRecord, OrganizationSettings, Subscription } from "../types/admin";
 
-function formatDate(value?: string) {
+function formatDate(locale: string, value?: string) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("pt-PT", {
+  return new Intl.DateTimeFormat(locale, {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -18,6 +19,7 @@ function formatDate(value?: string) {
 
 const SettingsPage: React.FC = () => {
   const { currentOrganizationId } = useAuth();
+  const { t, locale } = useI18n();
   const [settings, setSettings] = useState<OrganizationSettings | null>(null);
   const [profile, setProfile] = useState<BillingProfile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -43,7 +45,7 @@ const SettingsPage: React.FC = () => {
         setSubscription(nextSubscription);
         setInvoices(nextInvoices);
       } catch (err) {
-        setError(extractErrorMessage(err, "Falha ao carregar configurações"));
+        setError(extractErrorMessage(err, t("settings.load_error")));
       } finally {
         setLoading(false);
       }
@@ -53,67 +55,67 @@ const SettingsPage: React.FC = () => {
 
   return (
     <Container>
-      <Typography variant="h4" sx={{ mb: 3 }}>Configurações</Typography>
+      <Typography variant="h4" sx={{ mb: 3 }}>{t("settings.title")}</Typography>
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
       {loading ? <CircularProgress /> : (
         <Stack spacing={2}>
           <Card>
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 1 }}>Meu Plano</Typography>
+              <Typography variant="h6" sx={{ mb: 1 }}>{t("settings.my_plan")}</Typography>
               <Stack spacing={1}>
                 <Typography variant="body1">
-                  {subscription?.plan_code || "Sem assinatura ativa"}
+                  {subscription?.plan_code || t("settings.no_subscription")}
                 </Typography>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Chip
-                    label={subscription?.status || "indefinido"}
+                    label={subscription?.status || t("settings.undefined_status")}
                     color="primary"
                     variant="outlined"
                     size="small"
                   />
                   {subscription?.provider && (
                     <Typography variant="body2" color="text.secondary">
-                      Provider: {subscription.provider}
+                      {t("settings.provider")}: {subscription.provider}
                     </Typography>
                   )}
                 </Stack>
                 <Typography variant="body2" color="text.secondary">
-                  Início do ciclo: {formatDate(subscription?.current_period_start)}
+                  {t("settings.cycle_start")}: {formatDate(locale, subscription?.current_period_start)}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Fim do ciclo: {formatDate(subscription?.current_period_end)}
+                  {t("settings.cycle_end")}: {formatDate(locale, subscription?.current_period_end)}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Cancelamento ao fim do período: {subscription?.cancel_at_period_end ? "Sim" : "Não"}
+                  {t("settings.cancel_at_period_end")}: {subscription?.cancel_at_period_end ? t("common.yes") : t("common.no")}
                 </Typography>
                 {subscription?.trial_ends_at && (
                   <Typography variant="body2" color="text.secondary">
-                    Trial até: {formatDate(subscription.trial_ends_at)}
+                    {t("settings.trial_until")}: {formatDate(locale, subscription.trial_ends_at)}
                   </Typography>
                 )}
               </Stack>
             </CardContent>
           </Card>
           <Card><CardContent>
-            <Typography variant="h6">Organização</Typography>
+            <Typography variant="h6">{t("settings.organization")}</Typography>
             <Typography variant="body2" color="text.secondary">
-              Domínio permitido: {settings?.allowed_email_domain || "-"}
+              {t("settings.allowed_domain")}: {settings?.allowed_email_domain || "-"}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Workspace padrão: {settings?.default_project_id || "-"} / {settings?.default_namespace || "-"}
+              {t("settings.default_workspace")}: {settings?.default_project_id || "-"} / {settings?.default_namespace || "-"}
             </Typography>
           </CardContent></Card>
           <Card><CardContent>
-            <Typography variant="h6">Cobrança</Typography>
+            <Typography variant="h6">{t("settings.billing")}</Typography>
             <Typography variant="body2" color="text.secondary">
-              {profile?.legal_name || "Perfil de billing não configurado"}
+              {profile?.legal_name || t("settings.billing_missing")}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {profile?.billing_email || "-"}
             </Typography>
           </CardContent></Card>
           <Card><CardContent>
-            <Typography variant="h6" sx={{ mb: 1 }}>Faturas recentes</Typography>
+            <Typography variant="h6" sx={{ mb: 1 }}>{t("settings.recent_invoices")}</Typography>
             <Stack spacing={1}>
               {invoices.map((invoice) => (
                 <Typography key={invoice.id} variant="body2" color="text.secondary">
@@ -121,7 +123,7 @@ const SettingsPage: React.FC = () => {
                 </Typography>
               ))}
               {invoices.length === 0 && (
-                <Typography variant="body2" color="text.secondary">Nenhuma fatura encontrada.</Typography>
+                <Typography variant="body2" color="text.secondary">{t("settings.no_invoices")}</Typography>
               )}
             </Stack>
           </CardContent></Card>

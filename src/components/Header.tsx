@@ -9,6 +9,8 @@ import {
 } from "@mui/material";
 import { Menu, Logout } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
+import LanguageSwitcher from "./LanguageSwitcher";
+import { useI18n } from "../i18n";
 
 interface HeaderProps {
   onToggleMenu: () => void;
@@ -16,6 +18,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
   const { user, logout } = useAuth();
+  const { t } = useI18n();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const logoWidth = isMobile ? 140 : 180;
@@ -50,10 +53,13 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
         </Box>
         {user && (
           <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box sx={{ mr: 2 }}>
+              <LanguageSwitcher compact />
+            </Box>
             <Box component="span" sx={{ mr: 2, fontSize: 16, fontWeight: 600 }}>
               {user.name}
             </Box>
-            <IconButton color="inherit" onClick={logout}>
+            <IconButton color="inherit" onClick={logout} aria-label={t("header.logout")}>
               <Logout />
             </IconButton>
           </Box>
