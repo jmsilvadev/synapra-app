@@ -17,11 +17,11 @@ interface HeaderProps {
   onToggleMenu: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
+  const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
   const { user, logout, session, currentClientId, setCurrentClientId } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const iconSize = isMobile ? 40 : 44;
+  const logoWidth = isMobile ? 140 : 180;
 
   return (
     <AppBar
@@ -44,12 +44,13 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
         <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center" }}>
           <Box
             component="img"
-            src={`${process.env.PUBLIC_URL || ""}/synapra_icone_vazado.svg`}
+            src={`${process.env.PUBLIC_URL || ""}/synapra_final_logo.svg`}
             alt="Synapra"
             sx={{
-              width: iconSize,
-              height: iconSize,
-              borderRadius: 1.5,
+              width: logoWidth,
+              height: "auto",
+              maxHeight: 48,
+              borderRadius: 1,
               display: "block",
             }}
           />

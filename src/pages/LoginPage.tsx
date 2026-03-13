@@ -30,14 +30,15 @@ const LoginPage: React.FC = () => {
       >
         <Box
           component="img"
-          src={`${process.env.PUBLIC_URL || ""}/synapra_logo_wireframe.svg`}
+          src={`${process.env.PUBLIC_URL || ""}/synapra_final_logo.svg`}
           alt="Synapra"
           sx={{
             display: "block",
             width: "100%",
-            maxWidth: 520,
+            maxWidth: 560,
             mx: "auto",
             mb: 2,
+            borderRadius: 2,
           }}
         />
         <Typography variant="body1" align="center" color="text.secondary" sx={{ mb: 3 }}>
