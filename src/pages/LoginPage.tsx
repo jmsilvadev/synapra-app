@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Box, Button, Typography, Paper } from "@mui/material";
+import { Alert, Box, Button, Typography } from "@mui/material";
 import { Google as GoogleIcon } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 
@@ -13,19 +13,17 @@ const LoginPage: React.FC = () => {
         justifyContent: "center",
         alignItems: "center",
         minHeight: "100vh",
-        backgroundColor: "#ece9e2",
+        background:
+          "radial-gradient(circle at top left, rgba(0, 224, 255, 0.14), transparent 28%), #071417",
         px: 2,
       }}
     >
-      <Paper
-        elevation={0}
+      <Box
         sx={{
-          p: 4,
-          maxWidth: 720,
+          p: { xs: 3, sm: 2 },
+          maxWidth: 520,
           width: "100%",
-          borderRadius: 4,
-          border: "1px solid rgba(35, 78, 87, 0.12)",
-          backgroundColor: "#F7F6F2",
+          textAlign: "center",
         }}
       >
         <Box
@@ -35,34 +33,43 @@ const LoginPage: React.FC = () => {
           sx={{
             display: "block",
             width: "100%",
-            maxWidth: 560,
+            maxWidth: 420,
             mx: "auto",
-            mb: 2,
-            borderRadius: 2,
+            mb: 3,
+            borderRadius: 3,
           }}
         />
         <Typography variant="body1" align="center" color="text.secondary" sx={{ mb: 3 }}>
-          Faça login para acessar o painel administrativo
+          Faça login para aceder ao painel da sua organização
         </Typography>
         {loginError && (
           <Alert severity="error" sx={{ mb: 3 }}>
             {loginError}
           </Alert>
         )}
-        <Button
-          fullWidth
-          variant="contained"
-          startIcon={<GoogleIcon />}
-          onClick={loginWithGoogle}
-          sx={{
-            py: 1.5,
-            backgroundColor: "#234E57",
-            "&:hover": { backgroundColor: "#1d424a" },
-          }}
-        >
-          Entrar com Google
-        </Button>
-      </Paper>
+        <Box sx={{ display: "flex", justifyContent: "center" }}>
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5, width: "100%" }}>
+            <Button
+              variant="contained"
+              startIcon={<GoogleIcon />}
+              onClick={loginWithGoogle}
+              sx={{
+                py: 1.5,
+                px: 4,
+                minWidth: 280,
+                maxWidth: "100%",
+                backgroundColor: "#00C6B8",
+                color: "#031012",
+                "&:hover": {
+                  backgroundColor: "#00B7AB",
+                },
+              }}
+            >
+              Entrar com Google
+            </Button>
+          </Box>
+        </Box>
+      </Box>
     </Box>
   );
 };

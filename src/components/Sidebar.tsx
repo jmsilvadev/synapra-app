@@ -12,13 +12,9 @@ import {
 } from "@mui/material";
 import {
   Dashboard,
-  People,
   Settings,
-  AccountBalance,
-  History,
   Policy,
   Api,
-  Group,
   Receipt,
 } from "@mui/icons-material";
 import { Link, useLocation } from "react-router-dom";
@@ -33,11 +29,8 @@ interface SidebarProps {
 
 const menuItems = [
   { text: "Dashboard", icon: <Dashboard />, path: "/dashboard" },
-  { text: "Clientes", icon: <People />, path: "/clients" },
-  { text: "Planos", icon: <AccountBalance />, path: "/plans" },
   { text: "Regras & Políticas", icon: <Policy />, path: "/rules-policies" },
-  { text: "API/Integrações", icon: <Api />, path: "/api-integrations" },
-  { text: "Usuários", icon: <Group />, path: "/users" },
+  { text: "API", icon: <Api />, path: "/api" },
   { text: "Logs", icon: <Receipt />, path: "/logs" },
   { text: "Configurações", icon: <Settings />, path: "/settings" },
 ];
@@ -58,6 +51,7 @@ const Sidebar: React.FC<SidebarProps> = ({ expanded, setExpanded }) => {
         "& .MuiDrawer-paper": {
           width: expanded ? DRAWER_WIDTH : MINI_DRAWER_WIDTH,
           boxSizing: "border-box",
+          backgroundColor: "#0A171A",
           transition: theme.transitions.create("width", {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
@@ -65,7 +59,7 @@ const Sidebar: React.FC<SidebarProps> = ({ expanded, setExpanded }) => {
         },
       }}
     >
-      <List>
+      <List sx={{ pt: 2 }}>
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
             <ListItemButton
@@ -74,7 +68,9 @@ const Sidebar: React.FC<SidebarProps> = ({ expanded, setExpanded }) => {
               selected={location.pathname === item.path}
               onClick={() => isMobile && setExpanded(false)}
             >
-              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemIcon sx={{ color: location.pathname === item.path ? "#00E0FF" : "rgba(230, 247, 247, 0.72)" }}>
+                {item.icon}
+              </ListItemIcon>
               {expanded && <ListItemText primary={item.text} />}
             </ListItemButton>
           </ListItem>

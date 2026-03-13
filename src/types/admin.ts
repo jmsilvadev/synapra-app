@@ -79,6 +79,14 @@ export type WorkspaceRules = {
   rules_markdown: string;
 };
 
+export type WorkspaceRuleSummary = {
+  organization_id?: string;
+  project_id: string;
+  namespace: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type AuditLogRecord = {
   id: number;
   organization_id: string;

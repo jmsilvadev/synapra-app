@@ -1,12 +1,23 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Card, CardContent, CircularProgress, Container, Stack, Typography } from "@mui/material";
+import { Alert, Card, CardContent, Chip, CircularProgress, Container, Stack, Typography } from "@mui/material";
 import { useAuth } from "../context/AuthContext";
 import { getBillingProfile, getInvoices, getOrganizationSettings, getSubscription } from "../services/adminService";
 import { extractErrorMessage } from "../services/apiClient";
 import type { BillingProfile, InvoiceRecord, OrganizationSettings, Subscription } from "../types/admin";
 
+function formatDate(value?: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("pt-PT", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
 const SettingsPage: React.FC = () => {
-  const { currentClientId } = useAuth();
+  const { currentOrganizationId } = useAuth();
   const [settings, setSettings] = useState<OrganizationSettings | null>(null);
   const [profile, setProfile] = useState<BillingProfile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -16,16 +27,16 @@ const SettingsPage: React.FC = () => {
 
   useEffect(() => {
     const load = async () => {
-      if (!currentClientId) {
+      if (!currentOrganizationId) {
         setLoading(false);
         return;
       }
       try {
         const [nextSettings, nextProfile, nextSubscription, nextInvoices] = await Promise.all([
-          getOrganizationSettings(currentClientId).catch(() => null),
-          getBillingProfile(currentClientId).catch(() => null),
-          getSubscription(currentClientId).catch(() => null),
-          getInvoices(currentClientId).catch(() => []),
+          getOrganizationSettings(currentOrganizationId).catch(() => null),
+          getBillingProfile(currentOrganizationId).catch(() => null),
+          getSubscription(currentOrganizationId).catch(() => null),
+          getInvoices(currentOrganizationId).catch(() => []),
         ]);
         setSettings(nextSettings);
         setProfile(nextProfile);
@@ -38,7 +49,7 @@ const SettingsPage: React.FC = () => {
       }
     };
     load();
-  }, [currentClientId]);
+  }, [currentOrganizationId]);
 
   return (
     <Container>
@@ -46,6 +57,43 @@ const SettingsPage: React.FC = () => {
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
       {loading ? <CircularProgress /> : (
         <Stack spacing={2}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 1 }}>Meu Plano</Typography>
+              <Stack spacing={1}>
+                <Typography variant="body1">
+                  {subscription?.plan_code || "Sem assinatura ativa"}
+                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Chip
+                    label={subscription?.status || "indefinido"}
+                    color="primary"
+                    variant="outlined"
+                    size="small"
+                  />
+                  {subscription?.provider && (
+                    <Typography variant="body2" color="text.secondary">
+                      Provider: {subscription.provider}
+                    </Typography>
+                  )}
+                </Stack>
+                <Typography variant="body2" color="text.secondary">
+                  Início do ciclo: {formatDate(subscription?.current_period_start)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Fim do ciclo: {formatDate(subscription?.current_period_end)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Cancelamento ao fim do período: {subscription?.cancel_at_period_end ? "Sim" : "Não"}
+                </Typography>
+                {subscription?.trial_ends_at && (
+                  <Typography variant="body2" color="text.secondary">
+                    Trial até: {formatDate(subscription.trial_ends_at)}
+                  </Typography>
+                )}
+              </Stack>
+            </CardContent>
+          </Card>
           <Card><CardContent>
             <Typography variant="h6">Organização</Typography>
             <Typography variant="body2" color="text.secondary">
@@ -62,9 +110,6 @@ const SettingsPage: React.FC = () => {
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {profile?.billing_email || "-"}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Plano atual: {subscription?.plan_code || "-"} • {subscription?.status || "-"}
             </Typography>
           </CardContent></Card>
           <Card><CardContent>

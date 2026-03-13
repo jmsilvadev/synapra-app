@@ -6,21 +6,21 @@ import { extractErrorMessage } from "../services/apiClient";
 import type { AuditLogRecord } from "../types/admin";
 
 const LogsPage: React.FC = () => {
-  const { currentClientId } = useAuth();
+  const { currentOrganizationId } = useAuth();
   const [logs, setLogs] = useState<AuditLogRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!currentClientId) {
+    if (!currentOrganizationId) {
       setLoading(false);
       return;
     }
-    getAuditLogs(currentClientId)
+    getAuditLogs(currentOrganizationId)
       .then(setLogs)
       .catch((err) => setError(extractErrorMessage(err, "Falha ao carregar logs")))
       .finally(() => setLoading(false));
-  }, [currentClientId]);
+  }, [currentOrganizationId]);
 
   return (
     <Container>

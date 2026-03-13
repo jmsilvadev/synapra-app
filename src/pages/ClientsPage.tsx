@@ -67,8 +67,8 @@ const ClientsPage: React.FC = () => {
               sx={{
                 border:
                   currentClientId === client.id
-                    ? "1px solid rgba(35, 78, 87, 0.45)"
-                    : "1px solid rgba(255,255,255,0.08)",
+                    ? "1px solid rgba(0, 224, 255, 0.45)"
+                    : "1px solid rgba(0, 198, 184, 0.10)",
               }}
             >
               <CardContent

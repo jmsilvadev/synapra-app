@@ -15,21 +15,21 @@ import { extractErrorMessage } from "../services/apiClient";
 import type { DashboardResponse } from "../services/adminService";
 
 const DashboardPage: React.FC = () => {
-  const { currentClientId } = useAuth();
+  const { currentOrganizationId } = useAuth();
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
-      if (!currentClientId) {
+      if (!currentOrganizationId) {
         setLoading(false);
         return;
       }
       setLoading(true);
       setError(null);
       try {
-        setData(await getDashboard(currentClientId));
+        setData(await getDashboard(currentOrganizationId));
       } catch (err) {
         setError(extractErrorMessage(err, "Falha ao carregar dashboard"));
       } finally {
@@ -37,10 +37,10 @@ const DashboardPage: React.FC = () => {
       }
     };
     load();
-  }, [currentClientId]);
+  }, [currentOrganizationId]);
 
-  if (!currentClientId) {
-    return <Container><Alert severity="info">Selecione um cliente para visualizar o dashboard.</Alert></Container>;
+  if (!currentOrganizationId) {
+    return <Container><Alert severity="info">Nenhuma organização associada ao utilizador autenticado.</Alert></Container>;
   }
 
   if (loading) {

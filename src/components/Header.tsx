@@ -4,9 +4,6 @@ import {
   Toolbar,
   IconButton,
   Box,
-  FormControl,
-  MenuItem,
-  Select,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -17,8 +14,8 @@ interface HeaderProps {
   onToggleMenu: () => void;
 }
 
-  const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
-  const { user, logout, session, currentClientId, setCurrentClientId } = useAuth();
+const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
+  const { user, logout } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const logoWidth = isMobile ? 140 : 180;
@@ -26,11 +23,7 @@ interface HeaderProps {
   return (
     <AppBar
       position="static"
-      sx={{
-        backgroundColor: "#F7F6F2",
-        color: "#234E57",
-        boxShadow: "0 1px 0 rgba(35, 78, 87, 0.12)",
-      }}
+      sx={{ backgroundColor: "background.default", color: "text.primary" }}
     >
       <Toolbar>
         <IconButton
@@ -54,22 +47,6 @@ interface HeaderProps {
               display: "block",
             }}
           />
-          {session && session.memberships.length > 0 && (
-            <FormControl size="small" sx={{ ml: 2, minWidth: 220 }}>
-              <Select
-                value={currentClientId || ""}
-                onChange={(event) => setCurrentClientId(event.target.value || null)}
-              >
-                {session.memberships
-                  .filter((membership) => membership.active)
-                  .map((membership) => (
-                    <MenuItem key={membership.organization_id} value={membership.organization_id}>
-                      {membership.organization_name || membership.organization_id}
-                    </MenuItem>
-                  ))}
-              </Select>
-            </FormControl>
-          )}
         </Box>
         {user && (
           <Box sx={{ display: "flex", alignItems: "center" }}>

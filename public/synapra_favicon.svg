@@ -1,0 +1,19 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="synapraFaviconGradient" x1="40" y1="128" x2="184" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00C6B8"/>
+      <stop offset="100%" stop-color="#00E0FF"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="256" height="256" rx="48" fill="#071417"/>
+
+  <g stroke="url(#synapraFaviconGradient)" stroke-width="8" fill="none" stroke-linecap="round">
+    <path d="M56 128C100 128 118 106 162 106"/>
+    <path d="M56 128C100 128 118 118 178 118"/>
+    <path d="M56 128C100 128 118 138 178 138"/>
+    <path d="M56 128C100 128 118 150 162 150"/>
+  </g>
+
+  <circle cx="56" cy="128" r="8" fill="#00C6B8"/>
+</svg>

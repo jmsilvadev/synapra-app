@@ -14,6 +14,7 @@ import type {
   Plan,
   Subscription,
   Usage,
+  WorkspaceRuleSummary,
   WorkspaceRules,
 } from "../types/admin";
 
@@ -23,6 +24,10 @@ export type DashboardResponse = {
   usage: Usage;
   subscription?: Subscription;
 };
+
+function asArray<T>(value: T[] | null | undefined): T[] {
+  return Array.isArray(value) ? value : [];
+}
 
 export async function loginAdminWithFirebase(payload: {
   id_token: string;
@@ -46,7 +51,7 @@ export async function logoutAdmin() {
 
 export async function getClients() {
   const response = await apiClient.get<{ clients: Client[] }>("/v1/admin/clients");
-  return response.data.clients;
+  return asArray(response.data?.clients);
 }
 
 export async function createClient(payload: { name: string; plan: string }) {
@@ -63,7 +68,7 @@ export async function getDashboard(clientId: string) {
 
 export async function getPlans() {
   const response = await apiClient.get<{ plans: Plan[] }>("/v1/admin/plans");
-  return response.data.plans;
+  return asArray(response.data?.plans);
 }
 
 export async function upsertPlan(code: string, payload: Plan) {
@@ -78,6 +83,14 @@ export async function getOrganizationRules(clientId: string) {
   return response.data;
 }
 
+export async function updateOrganizationRules(clientId: string, rulesMarkdown: string) {
+  const response = await apiClient.put<OrganizationRules>(
+    `/v1/admin/clients/${clientId}/rules/organization`,
+    { rules_markdown: rulesMarkdown }
+  );
+  return response.data;
+}
+
 export async function getWorkspaceRules(clientId: string, projectId: string, namespace: string) {
   const response = await apiClient.get<WorkspaceRules>(
     `/v1/admin/clients/${clientId}/rules/workspace`,
@@ -88,11 +101,29 @@ export async function getWorkspaceRules(clientId: string, projectId: string, nam
   return response.data;
 }
 
+export async function listWorkspaceRules(clientId: string) {
+  const response = await apiClient.get<{ workspaces: WorkspaceRuleSummary[] }>(
+    `/v1/admin/clients/${clientId}/rules/workspaces`
+  );
+  return asArray(response.data?.workspaces);
+}
+
+export async function updateWorkspaceRules(
+  clientId: string,
+  payload: { project_id: string; namespace: string; rules_markdown: string }
+) {
+  const response = await apiClient.put<WorkspaceRules>(
+    `/v1/admin/clients/${clientId}/rules/workspace`,
+    payload
+  );
+  return response.data;
+}
+
 export async function getClientApiKeys(clientId: string) {
   const response = await apiClient.get<{ api_keys: ApiKey[] }>(
     `/v1/admin/clients/${clientId}/api-keys`
   );
-  return response.data.api_keys;
+  return asArray(response.data?.api_keys);
 }
 
 export async function createClientApiKey(clientId: string, label: string) {
@@ -103,18 +134,22 @@ export async function createClientApiKey(clientId: string, label: string) {
   return response.data;
 }
 
+export async function revokeClientApiKey(clientId: string, keyId: string) {
+  await apiClient.delete(`/v1/admin/clients/${clientId}/api-keys/${keyId}`);
+}
+
 export async function getClientUsers(clientId: string) {
   const response = await apiClient.get<{ users: Array<{ membership: Membership } & AdminSession["user"]> }>(
     `/v1/admin/clients/${clientId}/users`
   );
-  return response.data.users;
+  return asArray(response.data?.users);
 }
 
 export async function getClientInvitations(clientId: string) {
   const response = await apiClient.get<{ invitations: Array<{ id: string; email: string; role: string; expires_at: string; accepted_at?: string }> }>(
     `/v1/admin/clients/${clientId}/invitations`
   );
-  return response.data.invitations;
+  return asArray(response.data?.invitations);
 }
 
 export async function createClientInvitation(clientId: string, email: string, role: string) {
@@ -130,7 +165,7 @@ export async function getAuditLogs(clientId: string) {
   const response = await apiClient.get<{ logs: AuditLogRecord[] }>("/v1/admin/logs/audit", {
     params: { client_id: clientId, limit: 20 },
   });
-  return response.data.logs;
+  return asArray(response.data?.logs);
 }
 
 export async function getOrganizationSettings(clientId: string) {
@@ -158,5 +193,5 @@ export async function getInvoices(clientId: string) {
   const response = await apiClient.get<{ invoices: InvoiceRecord[] }>(
     `/v1/admin/clients/${clientId}/billing/invoices`
   );
-  return response.data.invoices;
+  return asArray(response.data?.invoices);
 }
