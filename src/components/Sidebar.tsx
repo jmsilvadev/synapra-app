@@ -32,7 +32,7 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { text: "Dashboard", icon: <Dashboard />, path: "/" },
+  { text: "Dashboard", icon: <Dashboard />, path: "/dashboard" },
   { text: "Clientes", icon: <People />, path: "/clients" },
   { text: "Planos", icon: <AccountBalance />, path: "/plans" },
   { text: "Regras & Políticas", icon: <Policy />, path: "/rules-policies" },

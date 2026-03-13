@@ -3,8 +3,10 @@ import {
   AppBar,
   Toolbar,
   IconButton,
-  Typography,
   Box,
+  FormControl,
+  MenuItem,
+  Select,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -16,12 +18,20 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, session, currentClientId, setCurrentClientId } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const iconSize = isMobile ? 40 : 44;
 
   return (
-    <AppBar position="static">
+    <AppBar
+      position="static"
+      sx={{
+        backgroundColor: "#F7F6F2",
+        color: "#234E57",
+        boxShadow: "0 1px 0 rgba(35, 78, 87, 0.12)",
+      }}
+    >
       <Toolbar>
         <IconButton
           color="inherit"
@@ -31,14 +41,40 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
         >
           <Menu />
         </IconButton>
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-          Synapra Admin
-        </Typography>
+        <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center" }}>
+          <Box
+            component="img"
+            src={`${process.env.PUBLIC_URL || ""}/synapra_icone_vazado.svg`}
+            alt="Synapra"
+            sx={{
+              width: iconSize,
+              height: iconSize,
+              borderRadius: 1.5,
+              display: "block",
+            }}
+          />
+          {session && session.memberships.length > 0 && (
+            <FormControl size="small" sx={{ ml: 2, minWidth: 220 }}>
+              <Select
+                value={currentClientId || ""}
+                onChange={(event) => setCurrentClientId(event.target.value || null)}
+              >
+                {session.memberships
+                  .filter((membership) => membership.active)
+                  .map((membership) => (
+                    <MenuItem key={membership.organization_id} value={membership.organization_id}>
+                      {membership.organization_name || membership.organization_id}
+                    </MenuItem>
+                  ))}
+              </Select>
+            </FormControl>
+          )}
+        </Box>
         {user && (
           <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Typography variant="body1" sx={{ mr: 2 }}>
+            <Box component="span" sx={{ mr: 2, fontSize: 16, fontWeight: 600 }}>
               {user.name}
-            </Typography>
+            </Box>
             <IconButton color="inherit" onClick={logout}>
               <Logout />
             </IconButton>

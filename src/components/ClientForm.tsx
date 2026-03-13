@@ -9,30 +9,31 @@ import {
   Typography,
   Paper,
   Grid,
+  MenuItem,
 } from "@mui/material";
 
 const schema = yup.object({
   name: yup.string().required("Nome é obrigatório"),
-  email: yup.string().email("Email inválido").required("Email é obrigatório"),
-  phone: yup.string().optional(),
+  plan: yup.string().oneOf(["starter", "pro", "enterprise"]).required("Plano é obrigatório"),
 });
 
-interface ClientFormData {
+export interface ClientFormData {
   name: string;
-  email: string;
-  phone?: string;
+  plan: string;
 }
 
 interface ClientFormProps {
-  onSubmit: (data: ClientFormData) => void;
+  onSubmit: (data: ClientFormData) => Promise<void> | void;
   initialData?: Partial<ClientFormData>;
   isEditing?: boolean;
+  submitting?: boolean;
 }
 
 const ClientForm: React.FC<ClientFormProps> = ({
   onSubmit,
   initialData = {},
   isEditing = false,
+  submitting = false,
 }) => {
   const {
     control,
@@ -40,11 +41,14 @@ const ClientForm: React.FC<ClientFormProps> = ({
     formState: { errors },
   } = useForm<ClientFormData>({
     resolver: yupResolver(schema),
-    defaultValues: initialData,
+    defaultValues: {
+      name: initialData.name || "",
+      plan: initialData.plan || "starter",
+    },
   });
 
   return (
-    <Paper sx={{ p: 3, maxWidth: 600, mx: "auto" }}>
+    <Paper sx={{ p: 3, maxWidth: 640, mx: "auto", backgroundColor: "background.paper" }}>
       <Typography variant="h5" gutterBottom>
         {isEditing ? "Editar Cliente" : "Novo Cliente"}
       </Typography>
@@ -58,7 +62,7 @@ const ClientForm: React.FC<ClientFormProps> = ({
                 <TextField
                   {...field}
                   fullWidth
-                  label="Nome"
+                  label="Nome do cliente"
                   error={!!errors.name}
                   helperText={errors.name?.message}
                 />
@@ -67,38 +71,27 @@ const ClientForm: React.FC<ClientFormProps> = ({
           </Grid>
           <Grid item xs={12}>
             <Controller
-              name="email"
+              name="plan"
               control={control}
               render={({ field }) => (
                 <TextField
                   {...field}
+                  select
                   fullWidth
-                  label="Email"
-                  type="email"
-                  error={!!errors.email}
-                  helperText={errors.email?.message}
-                />
+                  label="Plano inicial"
+                  error={!!errors.plan}
+                  helperText={errors.plan?.message}
+                >
+                  <MenuItem value="starter">Starter</MenuItem>
+                  <MenuItem value="pro">Pro</MenuItem>
+                  <MenuItem value="enterprise">Enterprise</MenuItem>
+                </TextField>
               )}
             />
           </Grid>
           <Grid item xs={12}>
-            <Controller
-              name="phone"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  label="Telefone"
-                  error={!!errors.phone}
-                  helperText={errors.phone?.message}
-                />
-              )}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <Button type="submit" variant="contained" fullWidth>
-              {isEditing ? "Salvar" : "Criar"}
+            <Button type="submit" variant="contained" fullWidth disabled={submitting}>
+              {submitting ? "Salvando..." : isEditing ? "Salvar" : "Criar"}
             </Button>
           </Grid>
         </Grid>
