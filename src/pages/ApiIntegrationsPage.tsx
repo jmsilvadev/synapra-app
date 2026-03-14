@@ -21,21 +21,66 @@ import { useAuth } from "../context/AuthContext";
 import {
   createClientApiKey,
   getClientApiKeys,
+  getOrganizationSettings,
   revokeClientApiKey,
 } from "../services/adminService";
 import { useI18n } from "../i18n";
-import { extractErrorMessage } from "../services/apiClient";
-import type { ApiKey, ApiKeyCreateResponse } from "../types/admin";
+import { apiBaseURL, extractErrorMessage } from "../services/apiClient";
+import type { ApiKey, OrganizationSettings } from "../types/admin";
+
+type BootstrapDialogState = {
+  sourceKeyId: string;
+  keyId: string;
+  keyLabel: string;
+  apiKeySecret: string;
+};
+
+function shellQuote(value: string) {
+  return `'${value.replace(/'/g, `'\"'\"'`)}'`;
+}
+
+function buildBootstrapCommand(input: {
+  apiURL: string;
+  apiKeySecret: string;
+  projectId: string;
+  namespace: string;
+}) {
+  const payload = JSON.stringify({
+    project_id: input.projectId,
+    namespace: input.namespace,
+    adapter: "agents",
+  });
+
+  return [
+    'TMP_JSON="$(mktemp)"',
+    `curl -s -X POST ${shellQuote(`${input.apiURL}/v1/bootstrap/render`)} \\`,
+    '  -H "Content-Type: application/json" \\',
+    `  -H "X-API-Key: ${input.apiKeySecret}" \\`,
+    `  -d ${shellQuote(payload)} > "$TMP_JSON"`,
+    '',
+    `jq -r '.files[] | select(.file_name=="SYNAPRA.md") | .content' "$TMP_JSON" > SYNAPRA.md`,
+    `BOOTSTRAP_BLOCK="$(jq -r '.files[] | select(.file_name=="AGENTS.md") | .content' "$TMP_JSON")"`,
+    `printf "%s\n" "$BOOTSTRAP_BLOCK" | cat - AGENTS.md 2>/dev/null > AGENTS.md.tmp`,
+    'mv AGENTS.md.tmp AGENTS.md',
+    'rm -f "$TMP_JSON"',
+  ].join("\n");
+}
 
 const ApiIntegrationsPage: React.FC = () => {
   const { currentOrganizationId } = useAuth();
   const { t } = useI18n();
   const [keys, setKeys] = useState<ApiKey[]>([]);
-  const [createdKey, setCreatedKey] = useState<ApiKeyCreateResponse | null>(null);
+  const [knownSecrets, setKnownSecrets] = useState<Record<string, string>>({});
   const [label, setLabel] = useState("agent");
   const [openCreate, setOpenCreate] = useState(false);
+  const [openBootstrap, setOpenBootstrap] = useState(false);
+  const [bootstrapDialog, setBootstrapDialog] = useState<BootstrapDialogState | null>(null);
+  const [bootstrapProjectId, setBootstrapProjectId] = useState("");
+  const [bootstrapNamespace, setBootstrapNamespace] = useState("workspace");
+  const [organizationSettings, setOrganizationSettings] = useState<OrganizationSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [creatingBootstrapKey, setCreatingBootstrapKey] = useState(false);
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -43,13 +88,19 @@ const ApiIntegrationsPage: React.FC = () => {
   const loadKeys = async () => {
     if (!currentOrganizationId) {
       setKeys([]);
+      setOrganizationSettings(null);
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      setKeys(await getClientApiKeys(currentOrganizationId));
+      const [apiKeys, settings] = await Promise.all([
+        getClientApiKeys(currentOrganizationId),
+        getOrganizationSettings(currentOrganizationId).catch(() => null),
+      ]);
+      setKeys(apiKeys);
+      setOrganizationSettings(settings);
     } catch (err) {
       setError(extractErrorMessage(err, t("api.load_error")));
     } finally {
@@ -72,10 +123,19 @@ const ApiIntegrationsPage: React.FC = () => {
     setSuccess(null);
     try {
       const key = await createClientApiKey(currentOrganizationId, label.trim());
-      setCreatedKey(key);
+      setKnownSecrets((current) => ({ ...current, [key.id]: key.secret }));
       setOpenCreate(false);
       setLabel("agent");
-      setSuccess(t("api.success.created"));
+      setBootstrapProjectId(organizationSettings?.default_project_id || "");
+      setBootstrapNamespace(organizationSettings?.default_namespace || "workspace");
+      setBootstrapDialog({
+        sourceKeyId: key.id,
+        keyId: key.id,
+        keyLabel: key.label,
+        apiKeySecret: key.secret,
+      });
+      setOpenBootstrap(true);
+      setSuccess(t("api.bootstrap_key_created"));
       await loadKeys();
     } catch (err) {
       setError(extractErrorMessage(err, t("api.generate")));
@@ -102,17 +162,69 @@ const ApiIntegrationsPage: React.FC = () => {
     }
   };
 
-  const handleCopySecret = async () => {
-    if (!createdKey?.secret) {
+  const handleOpenBootstrap = async (key: ApiKey) => {
+    setBootstrapProjectId(organizationSettings?.default_project_id || "");
+    setBootstrapNamespace(organizationSettings?.default_namespace || "workspace");
+    setError(null);
+    setSuccess(null);
+
+    const apiKeySecret = knownSecrets[key.id];
+    if (apiKeySecret) {
+      setBootstrapDialog({
+        sourceKeyId: key.id,
+        keyId: key.id,
+        keyLabel: key.label,
+        apiKeySecret,
+      });
+      setOpenBootstrap(true);
+      return;
+    }
+
+    if (!currentOrganizationId) {
+      return;
+    }
+
+    setCreatingBootstrapKey(true);
+    try {
+      const bootstrapKey = await createClientApiKey(currentOrganizationId, `${key.label}-bootstrap`);
+      setKnownSecrets((current) => ({ ...current, [bootstrapKey.id]: bootstrapKey.secret }));
+      setBootstrapDialog({
+        sourceKeyId: key.id,
+        keyId: bootstrapKey.id,
+        keyLabel: bootstrapKey.label,
+        apiKeySecret: bootstrapKey.secret,
+      });
+      setSuccess(t("api.bootstrap_key_created"));
+      setOpenBootstrap(true);
+      await loadKeys();
+    } catch (err) {
+      setError(extractErrorMessage(err, t("api.generate")));
+    } finally {
+      setCreatingBootstrapKey(false);
+    }
+  };
+
+  const handleCopyBootstrapCommand = async () => {
+    if (!bootstrapDialog || !bootstrapDialog.apiKeySecret || !bootstrapProjectId.trim() || !bootstrapNamespace.trim()) {
+      setError(t("api.bootstrap_validation"));
       return;
     }
     try {
-      await navigator.clipboard.writeText(createdKey.secret);
-      setSuccess(t("api.success.copied"));
+      await navigator.clipboard.writeText(
+        buildBootstrapCommand({
+          apiURL: apiBaseURL,
+          apiKeySecret: bootstrapDialog.apiKeySecret,
+          projectId: bootstrapProjectId.trim(),
+          namespace: bootstrapNamespace.trim(),
+        })
+      );
+      setSuccess(t("api.bootstrap_copied"));
     } catch {
       setError(t("api.error.copy"));
     }
   };
+
+
 
   return (
     <Container>
@@ -139,31 +251,6 @@ const ApiIntegrationsPage: React.FC = () => {
         </Alert>
       )}
 
-      {createdKey && (
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Stack spacing={1}>
-              <Typography variant="h6">{t("api.new_key_title")}</Typography>
-              <Typography color="text.secondary">
-                {t("api.new_key_desc")}
-              </Typography>
-              <TextField
-                fullWidth
-                value={createdKey.secret}
-                InputProps={{ readOnly: true }}
-              />
-            </Stack>
-          </CardContent>
-          <CardActions sx={{ px: 2, pb: 2 }}>
-            <Button variant="outlined" onClick={handleCopySecret}>
-              {t("api.copy_secret")}
-            </Button>
-            <Button onClick={() => setCreatedKey(null)}>
-              {t("common.close")}
-            </Button>
-          </CardActions>
-        </Card>
-      )}
 
       <Card sx={{ mb: 3 }}>
         <CardContent>
@@ -210,6 +297,9 @@ const ApiIntegrationsPage: React.FC = () => {
                 </CardContent>
                 <Divider />
                 <CardActions sx={{ px: 2, py: 1.5 }}>
+                  <Button onClick={() => void handleOpenBootstrap(key)} disabled={creatingBootstrapKey || Boolean(key.revoked_at)}>
+                    {t("api.bootstrap_button")}
+                  </Button>
                   <Button
                     color="error"
                     onClick={() => void handleRevoke(key.id)}
@@ -245,6 +335,62 @@ const ApiIntegrationsPage: React.FC = () => {
           <Button onClick={() => setOpenCreate(false)}>{t("common.cancel")}</Button>
           <Button onClick={handleCreate} variant="contained" disabled={creating}>
             {creating ? t("api.dialog_generating") : t("api.dialog_generate")}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={openBootstrap} onClose={() => setOpenBootstrap(false)} fullWidth maxWidth="md">
+        <DialogTitle>{t("api.bootstrap_title")}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography color="text.secondary">
+              {t("api.bootstrap_desc")}
+            </Typography>
+            <Alert severity="warning">{t("api.bootstrap_secret_warning")}</Alert>
+            <TextField
+              fullWidth
+              label={t("api.bootstrap_key_label")}
+              value={bootstrapDialog?.keyLabel || ""}
+              InputProps={{ readOnly: true }}
+            />
+            <TextField
+              fullWidth
+              label={t("api.bootstrap_project_id")}
+              value={bootstrapProjectId}
+              onChange={(event) => setBootstrapProjectId(event.target.value)}
+            />
+            <TextField
+              fullWidth
+              label={t("api.bootstrap_namespace")}
+              value={bootstrapNamespace}
+              onChange={(event) => setBootstrapNamespace(event.target.value)}
+            />
+            <TextField
+              fullWidth
+              multiline
+              minRows={12}
+              label={t("api.bootstrap_command")}
+              value={
+                bootstrapDialog
+                  ? buildBootstrapCommand({
+                      apiURL: apiBaseURL,
+                      apiKeySecret: bootstrapDialog.apiKeySecret,
+                      projectId: bootstrapProjectId.trim() || "<PROJECT_ID>",
+                      namespace: bootstrapNamespace.trim() || "workspace",
+                    })
+                  : ""
+              }
+              InputProps={{ readOnly: true }}
+            />
+            <Typography variant="body2" color="text.secondary">
+              {t("api.bootstrap_requires_jq")}
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenBootstrap(false)}>{t("common.close")}</Button>
+          <Button onClick={() => void handleCopyBootstrapCommand()} variant="contained">
+            {t("api.bootstrap_copy")}
           </Button>
         </DialogActions>
       </Dialog>

@@ -30,7 +30,6 @@ type AuthContextType = {
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   setCurrentOrganizationId: (organizationId: string | null) => void;
-  getOrganizationMembership: (organizationId: string) => AdminSession["memberships"][number] | undefined;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -97,22 +96,41 @@ export function clearPendingSignupContext() {
 }
 
 function normalizeSession(session: AdminSession): AdminSession {
-  const memberships = Array.isArray(session.memberships) ? session.memberships : [];
-  const primaryMembership = memberships.find((membership) => membership.active) || memberships[0];
-
   return {
     ...session,
     user: {
       ...session.user,
-      organization_id: session.user.organization_id || primaryMembership?.organization_id || "",
-      organization_name: session.user.organization_name || primaryMembership?.organization_name,
+      organization_id: session.user.organization_id || "",
     },
-    memberships,
   };
 }
 
 function tr(key: string, vars?: Record<string, string | number>) {
   return translate(getStoredLanguage(), key, vars);
+}
+
+function persistSignupRedirectContext(authResult?: {
+  user?: {
+    email?: string | null;
+    displayName?: string | null;
+  };
+}) {
+  persistSignupContext({
+    email: authResult?.user?.email,
+    name: authResult?.user?.displayName,
+  });
+  window.location.assign("/signup");
+}
+
+function shouldRedirectToSignup(error: unknown) {
+  if (!axios.isAxiosError(error)) {
+    return false;
+  }
+  if (error.response?.status !== 403) {
+    return false;
+  }
+  const message = String((error.response?.data as { error?: string } | undefined)?.error || "").toLowerCase();
+  return message.includes("organization");
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -236,26 +254,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       authResult = result;
       const firebaseIdToken = await result.user.getIdToken(true);
       const adminSession = await loginAdminWithFirebase({
-        provider: "firebase",
         id_token: firebaseIdToken,
         email: result.user.email,
         name: result.user.displayName,
         picture_url: result.user.photoURL,
       });
+      if (!adminSession.user.organization_id) {
+        await signOut(auth).catch(() => undefined);
+        applySession(null);
+        persistSignupRedirectContext(result);
+        return;
+      }
       applySession(adminSession);
     } catch (error) {
       await signOut(auth).catch(() => undefined);
       applySession(null);
-      if (
-        axios.isAxiosError(error) &&
-        error.response?.status === 403 &&
-        String((error.response?.data as { error?: string } | undefined)?.error || "").includes("organization membership")
-      ) {
-        persistSignupContext({
-          email: authResult?.user?.email,
-          name: authResult?.user?.displayName,
-        });
-        window.location.assign("/signup");
+      if (shouldRedirectToSignup(error)) {
+        persistSignupRedirectContext(authResult);
         return;
       }
       setLoginError(extractErrorMessage(error, tr("auth.google_error")));
@@ -272,11 +287,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     applySession(null);
   }, [applySession]);
 
-  const getOrganizationMembership = useCallback(
-    (organizationId: string) =>
-      (session?.memberships ?? []).find((membership) => membership.organization_id === organizationId),
-    [session]
-  );
 
   const value = useMemo<AuthContextType>(
     () => ({
@@ -288,11 +298,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       loginWithGoogle,
       logout,
       setCurrentOrganizationId,
-      getOrganizationMembership,
     }),
     [
       currentOrganizationId,
-      getOrganizationMembership,
       initializing,
       loginError,
       loginWithGoogle,

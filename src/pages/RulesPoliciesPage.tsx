@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import axios from "axios";
 import {
   Alert,
   Button,
@@ -29,6 +30,10 @@ import type { WorkspaceRuleSummary } from "../types/admin";
 
 function workspaceKey(projectId: string, namespace: string) {
   return `${projectId}::${namespace}`;
+}
+
+function isNotFoundError(error: unknown) {
+  return axios.isAxiosError(error) && error.response?.status === 404;
 }
 
 const RulesPoliciesPage: React.FC = () => {
@@ -63,6 +68,12 @@ const RulesPoliciesPage: React.FC = () => {
     try {
       const response = await getWorkspaceRules(clientId, nextProjectId.trim(), nextNamespace.trim());
       setWorkspaceRules(response?.rules_markdown || "");
+    } catch (err) {
+      if (isNotFoundError(err)) {
+        setWorkspaceRules("");
+        return;
+      }
+      throw err;
     } finally {
       setLoadingWorkspace(false);
     }
@@ -74,8 +85,16 @@ const RulesPoliciesPage: React.FC = () => {
     setSuccess(null);
 
     try {
-      const orgRules = await getOrganizationRules(clientId);
-      setOrganizationRules(orgRules.rules_markdown || "");
+      try {
+        const orgRules = await getOrganizationRules(clientId);
+        setOrganizationRules(orgRules.rules_markdown || "");
+      } catch (err) {
+        if (isNotFoundError(err)) {
+          setOrganizationRules("");
+        } else {
+          throw err;
+        }
+      }
 
       const workspaces = await refreshWorkspaceList(clientId);
 

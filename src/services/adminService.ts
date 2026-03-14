@@ -29,7 +29,6 @@ function asArray<T>(value: T[] | null | undefined): T[] {
 
 export async function loginAdminWithFirebase(payload: {
   id_token: string;
-  provider: string;
   email?: string | null;
   name?: string | null;
   picture_url?: string | null;
@@ -50,6 +49,11 @@ export async function logoutAdmin() {
 export async function getClients() {
   const response = await apiClient.get<{ clients: Client[] }>("/v1/console/clients");
   return asArray(response.data?.clients);
+}
+
+export async function updateClient(clientId: string, payload: { name?: string; plan?: string }) {
+  const response = await apiClient.put<Client>(`/v1/console/clients/${clientId}`, payload);
+  return response.data;
 }
 
 export async function getDashboard(clientId: string) {
@@ -135,9 +139,25 @@ export async function getOrganizationSettings(clientId: string) {
   return response.data;
 }
 
+export async function updateOrganizationSettings(clientId: string, payload: OrganizationSettings) {
+  const response = await apiClient.put<OrganizationSettings>(
+    `/v1/console/clients/${clientId}/settings`,
+    payload
+  );
+  return response.data;
+}
+
 export async function getBillingProfile(clientId: string) {
   const response = await apiClient.get<BillingProfile>(
     `/v1/console/clients/${clientId}/billing/profile`
+  );
+  return response.data;
+}
+
+export async function updateBillingProfile(clientId: string, payload: BillingProfile) {
+  const response = await apiClient.put<BillingProfile>(
+    `/v1/console/clients/${clientId}/billing/profile`,
+    payload
   );
   return response.data;
 }

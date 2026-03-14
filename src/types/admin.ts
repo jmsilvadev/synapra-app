@@ -2,22 +2,11 @@ export type AdminUser = {
   id: string;
   organization_id: string;
   organization_name?: string;
-  provider: string;
   external_subject?: string;
   email: string;
   name: string;
   picture_url?: string;
-  platform_role: string;
-  active: boolean;
-};
-
-export type Membership = {
-  id: string;
-  user_id: string;
-  organization_id: string;
-  organization_name?: string;
-  organization_plan?: string;
-  role: string;
+  role?: string;
   active: boolean;
 };
 
@@ -25,7 +14,6 @@ export type AdminSession = {
   token?: string;
   expires_at: string;
   user: AdminUser;
-  memberships?: Membership[];
 };
 
 export type Client = {
