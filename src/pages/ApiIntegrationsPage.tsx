@@ -200,28 +200,13 @@ const ApiIntegrationsPage: React.FC = () => {
       return;
     }
 
-    if (!currentOrganizationId) {
-      return;
-    }
-
-    setCreatingBootstrapKey(true);
-    try {
-      const bootstrapKey = await createClientApiKey(currentOrganizationId, key.label);
-      setKnownSecrets((current) => ({ ...current, [bootstrapKey.id]: bootstrapKey.secret }));
-      setBootstrapDialog({
-        sourceKeyId: key.id,
-        keyId: bootstrapKey.id,
-        keyLabel: bootstrapKey.label,
-        apiKeySecret: bootstrapKey.secret,
-      });
-      setSuccess(t("api.bootstrap_key_created"));
-      setOpenBootstrap(true);
-      await loadKeys();
-    } catch (err) {
-      setError(extractErrorMessage(err, t("api.generate")));
-    } finally {
-      setCreatingBootstrapKey(false);
-    }
+    setBootstrapDialog({
+      sourceKeyId: key.id,
+      keyId: key.id,
+      keyLabel: key.label,
+      apiKeySecret: "",
+    });
+    setOpenBootstrap(true);
   };
 
   const handleCopyBootstrapCommand = async () => {
