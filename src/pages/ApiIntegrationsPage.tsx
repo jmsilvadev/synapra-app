@@ -35,6 +35,11 @@ type BootstrapDialogState = {
   apiKeySecret: string;
 };
 
+type DeleteDialogState = {
+  keyId: string;
+  keyLabel: string;
+};
+
 function shellQuote(value: string) {
   return `'${value.replace(/'/g, `'\"'\"'`)}'`;
 }
@@ -52,17 +57,35 @@ function buildBootstrapCommand(input: {
   });
 
   return [
+    'TMP_SCRIPT="$(mktemp)"',
+    `cat > "$TMP_SCRIPT" <<'SYNAPRA_BOOTSTRAP'`,
+    '#!/usr/bin/env bash',
+    'set -euo pipefail',
+    '',
+    'mkdir -p "$HOME/.synapra"',
+    `printf "%s\\n" ${shellQuote(input.apiKeySecret)} > "$HOME/.synapra/api_key"`,
+    'chmod 600 "$HOME/.synapra/api_key"',
+    '',
     'TMP_JSON="$(mktemp)"',
+    'trap \'rm -f "$TMP_JSON"\' EXIT',
     `curl -s -X POST ${shellQuote(`${input.apiURL}/v1/bootstrap/render`)} \\`,
     '  -H "Content-Type: application/json" \\',
-    `  -H "X-API-Key: ${input.apiKeySecret}" \\`,
+    '  -H "X-API-Key: $(cat "$HOME/.synapra/api_key")" \\',
     `  -d ${shellQuote(payload)} > "$TMP_JSON"`,
     '',
     `jq -r '.files[] | select(.file_name=="SYNAPRA.md") | .content' "$TMP_JSON" > SYNAPRA.md`,
     `BOOTSTRAP_BLOCK="$(jq -r '.files[] | select(.file_name=="AGENTS.md") | .content' "$TMP_JSON")"`,
-    `printf "%s\n" "$BOOTSTRAP_BLOCK" | cat - AGENTS.md 2>/dev/null > AGENTS.md.tmp`,
+    'if [ -f AGENTS.md ]; then',
+    `  awk 'BEGIN { skipping = 1 } skipping { if ($0 == "<!-- synapra:bootstrap:v1 -->" || $0 == "<!-- /synapra:bootstrap:v1 -->" || $0 == "# Synapra Bootstrap" || $0 == "Read \`SYNAPRA.md\` before using local files as the main source of project discovery." || $0 == "Treat \`SYNAPRA.md\` as mandatory workspace context injected by the Synapra backend." || $0 == "If this file already contains repository-specific instructions below this block, follow them together with \`SYNAPRA.md\`." || $0 == "Before your final response, if you produced durable knowledge or code changes, you must execute \`POST /v1/knowledge/sync\`." || $0 == "") next; skipping = 0 } { print }' AGENTS.md > AGENTS.md.clean`,
+    'else',
+    '  : > AGENTS.md.clean',
+    'fi',
+    `printf "%s\n" "$BOOTSTRAP_BLOCK" | cat - AGENTS.md.clean > AGENTS.md.tmp`,
     'mv AGENTS.md.tmp AGENTS.md',
-    'rm -f "$TMP_JSON"',
+    'rm -f AGENTS.md.clean',
+    'SYNAPRA_BOOTSTRAP',
+    'bash "$TMP_SCRIPT"',
+    'rm -f "$TMP_SCRIPT"',
   ].join("\n");
 }
 
@@ -75,13 +98,14 @@ const ApiIntegrationsPage: React.FC = () => {
   const [openCreate, setOpenCreate] = useState(false);
   const [openBootstrap, setOpenBootstrap] = useState(false);
   const [bootstrapDialog, setBootstrapDialog] = useState<BootstrapDialogState | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null);
   const [bootstrapProjectId, setBootstrapProjectId] = useState("");
   const [bootstrapNamespace, setBootstrapNamespace] = useState("workspace");
   const [organizationSettings, setOrganizationSettings] = useState<OrganizationSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [creatingBootstrapKey, setCreatingBootstrapKey] = useState(false);
-  const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null);
+  const [deletingKeyId, setDeletingKeyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -126,16 +150,7 @@ const ApiIntegrationsPage: React.FC = () => {
       setKnownSecrets((current) => ({ ...current, [key.id]: key.secret }));
       setOpenCreate(false);
       setLabel("agent");
-      setBootstrapProjectId(organizationSettings?.default_project_id || "");
-      setBootstrapNamespace(organizationSettings?.default_namespace || "workspace");
-      setBootstrapDialog({
-        sourceKeyId: key.id,
-        keyId: key.id,
-        keyLabel: key.label,
-        apiKeySecret: key.secret,
-      });
-      setOpenBootstrap(true);
-      setSuccess(t("api.bootstrap_key_created"));
+      setSuccess(t("api.success.created"));
       await loadKeys();
     } catch (err) {
       setError(extractErrorMessage(err, t("api.generate")));
@@ -144,21 +159,26 @@ const ApiIntegrationsPage: React.FC = () => {
     }
   };
 
-  const handleRevoke = async (keyId: string) => {
+  const handleDelete = async (keyId: string) => {
     if (!currentOrganizationId) {
       return;
     }
-    setRevokingKeyId(keyId);
+    setDeletingKeyId(keyId);
     setError(null);
     setSuccess(null);
     try {
       await revokeClientApiKey(currentOrganizationId, keyId);
-      setSuccess(t("api.success.revoked"));
-      await loadKeys();
+      setKnownSecrets((current) => {
+        const next = { ...current };
+        delete next[keyId];
+        return next;
+      });
+      setKeys((current) => current.filter((key) => key.id !== keyId));
+      setSuccess(t("api.success.deleted"));
     } catch (err) {
-      setError(extractErrorMessage(err, t("api.revoke")));
+      setError(extractErrorMessage(err, t("common.delete")));
     } finally {
-      setRevokingKeyId(null);
+      setDeletingKeyId(null);
     }
   };
 
@@ -186,7 +206,7 @@ const ApiIntegrationsPage: React.FC = () => {
 
     setCreatingBootstrapKey(true);
     try {
-      const bootstrapKey = await createClientApiKey(currentOrganizationId, `${key.label}-bootstrap`);
+      const bootstrapKey = await createClientApiKey(currentOrganizationId, key.label);
       setKnownSecrets((current) => ({ ...current, [bootstrapKey.id]: bootstrapKey.secret }));
       setBootstrapDialog({
         sourceKeyId: key.id,
@@ -302,10 +322,10 @@ const ApiIntegrationsPage: React.FC = () => {
                   </Button>
                   <Button
                     color="error"
-                    onClick={() => void handleRevoke(key.id)}
-                    disabled={Boolean(key.revoked_at) || revokingKeyId === key.id}
+                    onClick={() => setDeleteDialog({ keyId: key.id, keyLabel: key.label })}
+                    disabled={Boolean(key.revoked_at) || deletingKeyId === key.id}
                   >
-                    {revokingKeyId === key.id ? t("api.revoking") : t("api.revoke")}
+                    {deletingKeyId === key.id ? t("api.deleting") : t("common.delete")}
                   </Button>
                 </CardActions>
               </Card>
@@ -391,6 +411,35 @@ const ApiIntegrationsPage: React.FC = () => {
           <Button onClick={() => setOpenBootstrap(false)}>{t("common.close")}</Button>
           <Button onClick={() => void handleCopyBootstrapCommand()} variant="contained">
             {t("api.bootstrap_copy")}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={Boolean(deleteDialog)} onClose={() => setDeleteDialog(null)} fullWidth maxWidth="sm">
+        <DialogTitle>{t("api.delete_confirm_title")}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography color="text.secondary">
+              {t("api.delete_confirm_desc", { label: deleteDialog?.keyLabel || "" })}
+            </Typography>
+            <Alert severity="warning">{t("api.delete_confirm_warning")}</Alert>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialog(null)}>{t("common.cancel")}</Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => {
+              if (!deleteDialog) {
+                return;
+              }
+              void handleDelete(deleteDialog.keyId);
+              setDeleteDialog(null);
+            }}
+            disabled={!deleteDialog || deletingKeyId === deleteDialog.keyId}
+          >
+            {deleteDialog && deletingKeyId === deleteDialog.keyId ? t("api.deleting") : t("common.delete")}
           </Button>
         </DialogActions>
       </Dialog>

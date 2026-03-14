@@ -106,6 +106,12 @@ export async function updateWorkspaceRules(
   return response.data;
 }
 
+export async function deleteWorkspaceRules(clientId: string, projectId: string, namespace: string) {
+  await apiClient.delete(`/v1/console/clients/${clientId}/rules/workspace`, {
+    params: { project_id: projectId, namespace },
+  });
+}
+
 export async function getClientApiKeys(clientId: string) {
   const response = await apiClient.get<{ api_keys: ApiKey[] }>(
     `/v1/console/clients/${clientId}/api-keys`

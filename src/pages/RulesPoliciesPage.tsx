@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import axios from "axios";
+import { DeleteOutline } from "@mui/icons-material";
 import {
   Alert,
   Button,
@@ -8,6 +9,12 @@ import {
   Chip,
   CircularProgress,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  IconButton,
   Divider,
   Grid,
   Stack,
@@ -21,6 +28,7 @@ import {
   getOrganizationRules,
   getWorkspaceRules,
   listWorkspaceRules,
+  deleteWorkspaceRules,
   updateOrganizationRules,
   updateWorkspaceRules,
 } from "../services/adminService";
@@ -51,6 +59,8 @@ const RulesPoliciesPage: React.FC = () => {
   const [loadingWorkspace, setLoadingWorkspace] = useState(false);
   const [savingOrganization, setSavingOrganization] = useState(false);
   const [savingWorkspace, setSavingWorkspace] = useState(false);
+  const [deletingWorkspaceKey, setDeletingWorkspaceKey] = useState<string | null>(null);
+  const [deleteDialogWorkspace, setDeleteDialogWorkspace] = useState<WorkspaceRuleSummary | null>(null);
 
   const refreshWorkspaceList = useCallback(async (clientId: string) => {
     const workspaces = await listWorkspaceRules(clientId);
@@ -164,6 +174,43 @@ const RulesPoliciesPage: React.FC = () => {
     setSuccess(t("rules.success.workspace_loaded"));
   };
 
+  const handleDeleteWorkspace = async (targetProjectId: string, targetNamespace: string) => {
+    if (!currentOrganizationId) {
+      return;
+    }
+
+    const targetKey = workspaceKey(targetProjectId, targetNamespace);
+    setDeletingWorkspaceKey(targetKey);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await deleteWorkspaceRules(currentOrganizationId, targetProjectId, targetNamespace);
+      const updatedWorkspaces = await refreshWorkspaceList(currentOrganizationId);
+
+      if (projectId === targetProjectId && namespace === targetNamespace) {
+        const nextWorkspace = updatedWorkspaces[0];
+        if (nextWorkspace) {
+          setProjectId(nextWorkspace.project_id);
+          setNamespace(nextWorkspace.namespace);
+          await loadWorkspaceRules(
+            currentOrganizationId,
+            nextWorkspace.project_id,
+            nextWorkspace.namespace
+          );
+        } else {
+          handleCreateWorkspaceDraft();
+        }
+      }
+
+      setSuccess(t("rules.success.workspace_deleted"));
+    } catch (err) {
+      setError(extractErrorMessage(err, t("rules.delete_workspace")));
+    } finally {
+      setDeletingWorkspaceKey(null);
+    }
+  };
+
   const handleSaveOrganizationRules = async () => {
     if (!currentOrganizationId) {
       return;
@@ -214,17 +261,10 @@ const RulesPoliciesPage: React.FC = () => {
         namespace: trimmedNamespace,
         rules_markdown: workspaceRules,
       });
+      setProjectId(trimmedProjectId);
+      setNamespace(trimmedNamespace);
       setWorkspaceRules(response.rules_markdown || "");
-      const workspaces = await refreshWorkspaceList(currentOrganizationId);
-      const exists = workspaces.some(
-        (item) => item.project_id === trimmedProjectId && item.namespace === trimmedNamespace
-      );
-      if (!exists) {
-        setWorkspaceList((current) => [
-          ...current,
-          { project_id: trimmedProjectId, namespace: trimmedNamespace },
-        ]);
-      }
+      await refreshWorkspaceList(currentOrganizationId);
       setSuccess(t("rules.success.workspace_saved"));
     } catch (err) {
       setError(extractErrorMessage(err, t("rules.save_workspace")));
@@ -368,9 +408,11 @@ const RulesPoliciesPage: React.FC = () => {
                                   {workspaceList.map((item) => {
                                     const selected =
                                       item.project_id === projectId && item.namespace === namespace;
+                                    const itemKey = workspaceKey(item.project_id, item.namespace);
+                                    const deleting = deletingWorkspaceKey === itemKey;
                                     return (
                                       <Card
-                                        key={workspaceKey(item.project_id, item.namespace)}
+                                        key={itemKey}
                                         variant="outlined"
                                         sx={{
                                           cursor: "pointer",
@@ -381,15 +423,38 @@ const RulesPoliciesPage: React.FC = () => {
                                         onClick={() => void handleWorkspaceSelect(item.project_id, item.namespace)}
                                       >
                                         <CardContent sx={{ "&:last-child": { pb: 2 } }}>
-                                          <Stack spacing={1}>
-                                            <Typography variant="subtitle2">{item.project_id}</Typography>
-                                            <Chip
-                                              label={item.namespace}
-                                              size="small"
-                                              color={selected ? "primary" : "default"}
-                                              variant="outlined"
-                                              sx={{ width: "fit-content" }}
-                                            />
+                                          <Stack spacing={1.5}>
+                                            <Stack
+                                              direction="row"
+                                              alignItems="flex-start"
+                                              justifyContent="space-between"
+                                              spacing={1}
+                                            >
+                                              <Stack spacing={1}>
+                                                <Typography variant="subtitle2">{item.project_id}</Typography>
+                                                <Chip
+                                                  label={item.namespace}
+                                                  size="small"
+                                                  color={selected ? "primary" : "default"}
+                                                  variant="outlined"
+                                                  sx={{ width: "fit-content" }}
+                                                />
+                                              </Stack>
+                                              <Stack direction="row" spacing={0.5}>
+                                                <IconButton
+                                                  size="small"
+                                                  color="error"
+                                                  aria-label={t("common.delete")}
+                                                  disabled={deleting}
+                                                  onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    setDeleteDialogWorkspace(item);
+                                                  }}
+                                                >
+                                                  <DeleteOutline fontSize="small" />
+                                                </IconButton>
+                                              </Stack>
+                                            </Stack>
                                           </Stack>
                                         </CardContent>
                                       </Card>
@@ -465,6 +530,47 @@ const RulesPoliciesPage: React.FC = () => {
           </Card>
         </Stack>
       )}
+      <Dialog
+        open={Boolean(deleteDialogWorkspace)}
+        onClose={() => !deletingWorkspaceKey && setDeleteDialogWorkspace(null)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>{t("rules.delete_workspace")}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {t("rules.delete_confirm", {
+              workspace: deleteDialogWorkspace
+                ? `${deleteDialogWorkspace.project_id}/${deleteDialogWorkspace.namespace}`
+                : "",
+            })}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setDeleteDialogWorkspace(null)}
+            disabled={Boolean(deletingWorkspaceKey)}
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={!deleteDialogWorkspace || Boolean(deletingWorkspaceKey)}
+            onClick={() => {
+              if (!deleteDialogWorkspace) {
+                return;
+              }
+              void handleDeleteWorkspace(
+                deleteDialogWorkspace.project_id,
+                deleteDialogWorkspace.namespace
+              ).finally(() => setDeleteDialogWorkspace(null));
+            }}
+          >
+            {t("common.delete")}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
