@@ -47,3 +47,9 @@ Use this file as the contract for how the agent should query Synapra, not as an 
 - If you made more changes after the last `knowledge/sync`, send another `knowledge/sync` before finishing.
 - A task with durable changes is not complete until `knowledge/sync` has been executed successfully.
 
+## Agent Acknowledgment
+
+- By starting a session in this workspace, you acknowledge that you have read and understood this file.
+- You confirm that you will follow the rules defined in this document, including the required write-back to Synapra.
+- If you cannot or will not follow these rules, you must inform the user before proceeding with any task.
+

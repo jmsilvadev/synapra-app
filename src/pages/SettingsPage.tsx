@@ -16,7 +16,23 @@ import {
   Stack,
   TextField,
   Typography,
+  Grid,
+  Divider,
+  Box,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
+import {
+  Business as BusinessIcon,
+  CreditCard as CreditCardIcon,
+  Settings as SettingsIcon,
+  Edit as EditIcon,
+  CalendarMonth as CalendarIcon,
+  Email as EmailIcon,
+  Person as PersonIcon,
+  LocationOn as LocationIcon,
+  Badge as BadgeIcon,
+} from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
 import {
@@ -195,114 +211,193 @@ const SettingsPage: React.FC = () => {
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess(null)}>{success}</Alert>}
       {loading ? <CircularProgress /> : (
-        <Stack spacing={2}>
-          <Card>
+        <Stack spacing={3}>
+          <Card variant="outlined">
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 1 }}>{t("settings.my_plan")}</Typography>
-              <Stack spacing={1}>
-                <Typography variant="body1">
-                  {subscription?.plan_code || client?.plan || t("settings.no_subscription")}
-                </Typography>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip
-                    label={subscription?.status || t("settings.undefined_status")}
-                    color="primary"
-                    variant="outlined"
-                    size="small"
-                  />
-                  {subscription?.provider && (
-                    <Typography variant="body2" color="text.secondary">
-                      {t("settings.provider")}: {subscription.provider}
-                    </Typography>
-                  )}
-                </Stack>
-                <Typography variant="body2" color="text.secondary">
-                  {t("settings.cycle_start")}: {formatDate(locale, subscription?.current_period_start)}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {t("settings.cycle_end")}: {formatDate(locale, subscription?.current_period_end)}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {t("settings.cancel_at_period_end")}: {subscription?.cancel_at_period_end ? t("common.yes") : t("common.no")}
-                </Typography>
-                {subscription?.trial_ends_at && (
+              <Stack direction="row" alignItems="center" spacing={2} mb={2}>
+                <CreditCardIcon color="primary" fontSize="large" />
+                <Box>
+                  <Typography variant="h6">{t("settings.my_plan")}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {t("settings.trial_until")}: {formatDate(locale, subscription.trial_ends_at)}
+                    {subscription?.plan_code || client?.plan || t("settings.no_subscription")}
                   </Typography>
-                )}
+                </Box>
+                <Chip
+                  label={subscription?.status || t("settings.undefined_status")}
+                  color={subscription?.status === "active" ? "success" : "default"}
+                  variant="outlined"
+                  size="small"
+                />
+                <Box sx={{ ml: "auto" }}>
+                  <Tooltip title={t("common.edit")}>
+                    <IconButton color="primary" onClick={() => setOpenPlanEdit(true)} size="small">
+                      <EditIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
               </Stack>
+              <Divider sx={{ my: 2 }} />
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <Stack spacing={1}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <CalendarIcon fontSize="small" color="action" />
+                      <Typography variant="body2" color="text.secondary">
+                        {t("settings.cycle_start")}: {formatDate(locale, subscription?.current_period_start)}
+                      </Typography>
+                    </Stack>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <CalendarIcon fontSize="small" color="action" />
+                      <Typography variant="body2" color="text.secondary">
+                        {t("settings.cycle_end")}: {formatDate(locale, subscription?.current_period_end)}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Stack spacing={1}>
+                    {subscription?.provider && (
+                      <Typography variant="body2" color="text.secondary">
+                        {t("settings.provider")}: {subscription.provider}
+                      </Typography>
+                    )}
+                    <Typography variant="body2" color="text.secondary">
+                      {t("settings.cancel_at_period_end")}: {subscription?.cancel_at_period_end ? t("common.yes") : t("common.no")}
+                    </Typography>
+                    {subscription?.trial_ends_at && (
+                      <Typography variant="body2" color="warning.main">
+                        {t("settings.trial_until")}: {formatDate(locale, subscription.trial_ends_at)}
+                      </Typography>
+                    )}
+                  </Stack>
+                </Grid>
+              </Grid>
             </CardContent>
-            <CardActions sx={{ px: 2, pb: 2 }}>
-              <Button variant="outlined" onClick={() => setOpenPlanEdit(true)}>{t("common.edit")}</Button>
-            </CardActions>
           </Card>
 
-          <Card>
+          <Card variant="outlined">
             <CardContent>
-              <Typography variant="h6">{t("settings.organization")}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                {t("settings.organization_name")}: {client?.name || "-"}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {t("settings.organization_id")}: {client?.id || "-"}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {t("settings.created_at")}: {formatDate(locale, client?.created_at)}
-              </Typography>
+              <Stack direction="row" alignItems="center" spacing={2} mb={2}>
+                <BusinessIcon color="primary" fontSize="large" />
+                <Box>
+                  <Typography variant="h6">{t("settings.organization")}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {client?.name || "-"}
+                  </Typography>
+                </Box>
+                <Chip 
+                  label={client?.id?.slice(0, 8) || "-"} 
+                  size="small" 
+                  variant="outlined" 
+                />
+                <Box sx={{ ml: "auto" }}>
+                  <Tooltip title={t("common.edit")}>
+                    <IconButton color="primary" onClick={() => setOpenOrganizationEdit(true)} size="small">
+                      <EditIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Stack>
+              <Divider sx={{ my: 2 }} />
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <BadgeIcon fontSize="small" color="action" />
+                    <Typography variant="body2" color="text.secondary">
+                      {t("settings.organization_id")}: {client?.id || "-"}
+                    </Typography>
+                  </Stack>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <CalendarIcon fontSize="small" color="action" />
+                    <Typography variant="body2" color="text.secondary">
+                      {t("settings.created_at")}: {formatDate(locale, client?.created_at)}
+                    </Typography>
+                  </Stack>
+                </Grid>
+              </Grid>
             </CardContent>
-            <CardActions sx={{ px: 2, pb: 2 }}>
-              <Button variant="outlined" onClick={() => setOpenOrganizationEdit(true)}>{t("common.edit")}</Button>
-            </CardActions>
           </Card>
 
-          <Card>
+          <Card variant="outlined">
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 1 }}>{t("settings.billing")}</Typography>
+              <Stack direction="row" alignItems="center" spacing={2} mb={2}>
+                <SettingsIcon color="primary" fontSize="large" />
+                <Box>
+                  <Typography variant="h6">{t("settings.billing")}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {billingProfile?.legal_name || t("settings.billing_missing")}
+                  </Typography>
+                </Box>
+                <Box sx={{ ml: "auto" }}>
+                  <Tooltip title={billingProfile ? t("common.edit") : t("settings.add_billing")}>
+                    <IconButton color="primary" onClick={() => setOpenBillingEdit(true)} size="small">
+                      <EditIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Stack>
               {billingProfile ? (
-                <Stack spacing={0.5}>
-                  <Typography variant="body2" color="text.secondary">
-                    {t("settings.legal_name")}: {billingProfile.legal_name || "-"}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t("settings.billing_email")}: {billingProfile.billing_email || "-"}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t("settings.contact_name")}: {billingProfile.contact_name || "-"}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t("settings.vat_number")}: {billingProfile.vat_number || "-"}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t("settings.address_line1")}: {billingProfile.address_line1 || "-"}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t("settings.address_line2")}: {billingProfile.address_line2 || "-"}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t("settings.city")}: {billingProfile.city || "-"}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t("settings.postal_code")}: {billingProfile.postal_code || "-"}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t("settings.country_code")}: {billingProfile.country_code || "-"}
-                  </Typography>
-                </Stack>
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <Stack spacing={1.5}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <BusinessIcon fontSize="small" color="action" />
+                          <Typography variant="body2">{billingProfile.legal_name || "-"}</Typography>
+                        </Stack>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <EmailIcon fontSize="small" color="action" />
+                          <Typography variant="body2">{billingProfile.billing_email || "-"}</Typography>
+                        </Stack>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <PersonIcon fontSize="small" color="action" />
+                          <Typography variant="body2">{billingProfile.contact_name || "-"}</Typography>
+                        </Stack>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <BadgeIcon fontSize="small" color="action" />
+                          <Typography variant="body2">{billingProfile.vat_number || "-"}</Typography>
+                        </Stack>
+                      </Stack>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Stack spacing={1.5}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <LocationIcon fontSize="small" color="action" />
+                          <Typography variant="body2">{billingProfile.address_line1 || "-"}</Typography>
+                        </Stack>
+                        <Typography variant="body2" color="text.secondary">
+                          {billingProfile.address_line2 || "-"}
+                        </Typography>
+                        <Typography variant="body2">
+                          {billingProfile.postal_code} {billingProfile.city}
+                        </Typography>
+                        <Typography variant="body2">
+                          {billingProfile.country_code || "-"}
+                        </Typography>
+                      </Stack>
+                    </Grid>
+                  </Grid>
+                </>
               ) : (
-                <Typography variant="body2" color="text.secondary">
+                <Alert severity="info" sx={{ mt: 2 }}>
                   {t("settings.billing_missing")}
-                </Typography>
+                </Alert>
               )}
             </CardContent>
-            <CardActions sx={{ px: 2, pb: 2 }}>
-              <Button variant="outlined" onClick={() => setOpenBillingEdit(true)}>{t("common.edit")}</Button>
-            </CardActions>
           </Card>
         </Stack>
       )}
 
       <Dialog open={openPlanEdit} onClose={() => setOpenPlanEdit(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{t("common.edit")}</DialogTitle>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <CreditCardIcon color="primary" />
+            {t("settings.my_plan")}
+          </Stack>
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
@@ -325,82 +420,105 @@ const SettingsPage: React.FC = () => {
       </Dialog>
 
       <Dialog open={openBillingEdit} onClose={() => setOpenBillingEdit(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{t("common.edit")}</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              fullWidth
-              label={t("settings.legal_name")}
-              value={billingForm.legal_name}
-              onChange={(event) =>
-                setBillingForm((current) => ({ ...current, legal_name: event.target.value }))
-              }
-            />
-            <TextField
-              fullWidth
-              label={t("settings.billing_email")}
-              value={billingForm.billing_email}
-              onChange={(event) =>
-                setBillingForm((current) => ({ ...current, billing_email: event.target.value }))
-              }
-            />
-            <TextField
-              fullWidth
-              label={t("settings.contact_name")}
-              value={billingForm.contact_name || ""}
-              onChange={(event) =>
-                setBillingForm((current) => ({ ...current, contact_name: event.target.value }))
-              }
-            />
-            <TextField
-              fullWidth
-              label={t("settings.vat_number")}
-              value={billingForm.vat_number || ""}
-              onChange={(event) =>
-                setBillingForm((current) => ({ ...current, vat_number: event.target.value }))
-              }
-            />
-            <TextField
-              fullWidth
-              label={t("settings.address_line1")}
-              value={billingForm.address_line1 || ""}
-              onChange={(event) =>
-                setBillingForm((current) => ({ ...current, address_line1: event.target.value }))
-              }
-            />
-            <TextField
-              fullWidth
-              label={t("settings.address_line2")}
-              value={billingForm.address_line2 || ""}
-              onChange={(event) =>
-                setBillingForm((current) => ({ ...current, address_line2: event.target.value }))
-              }
-            />
-            <TextField
-              fullWidth
-              label={t("settings.city")}
-              value={billingForm.city || ""}
-              onChange={(event) =>
-                setBillingForm((current) => ({ ...current, city: event.target.value }))
-              }
-            />
-            <TextField
-              fullWidth
-              label={t("settings.postal_code")}
-              value={billingForm.postal_code || ""}
-              onChange={(event) =>
-                setBillingForm((current) => ({ ...current, postal_code: event.target.value }))
-              }
-            />
-            <TextField
-              fullWidth
-              label={t("settings.country_code")}
-              value={billingForm.country_code || ""}
-              onChange={(event) =>
-                setBillingForm((current) => ({ ...current, country_code: event.target.value }))
-              }
-            />
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <SettingsIcon color="primary" />
+            {t("settings.billing")}
           </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 0 }}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label={t("settings.legal_name")}
+                value={billingForm.legal_name}
+                onChange={(event) =>
+                  setBillingForm((current) => ({ ...current, legal_name: event.target.value }))
+                }
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label={t("settings.billing_email")}
+                value={billingForm.billing_email}
+                onChange={(event) =>
+                  setBillingForm((current) => ({ ...current, billing_email: event.target.value }))
+                }
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label={t("settings.contact_name")}
+                value={billingForm.contact_name || ""}
+                onChange={(event) =>
+                  setBillingForm((current) => ({ ...current, contact_name: event.target.value }))
+                }
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label={t("settings.vat_number")}
+                value={billingForm.vat_number || ""}
+                onChange={(event) =>
+                  setBillingForm((current) => ({ ...current, vat_number: event.target.value }))
+                }
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label={t("settings.address_line1")}
+                value={billingForm.address_line1 || ""}
+                onChange={(event) =>
+                  setBillingForm((current) => ({ ...current, address_line1: event.target.value }))
+                }
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label={t("settings.address_line2")}
+                value={billingForm.address_line2 || ""}
+                onChange={(event) =>
+                  setBillingForm((current) => ({ ...current, address_line2: event.target.value }))
+                }
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                fullWidth
+                label={t("settings.city")}
+                value={billingForm.city || ""}
+                onChange={(event) =>
+                  setBillingForm((current) => ({ ...current, city: event.target.value }))
+                }
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                fullWidth
+                label={t("settings.postal_code")}
+                value={billingForm.postal_code || ""}
+                onChange={(event) =>
+                  setBillingForm((current) => ({ ...current, postal_code: event.target.value }))
+                }
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                fullWidth
+                label={t("settings.country_code")}
+                value={billingForm.country_code || ""}
+                onChange={(event) =>
+                  setBillingForm((current) => ({ ...current, country_code: event.target.value }))
+                }
+              />
+            </Grid>
+          </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenBillingEdit(false)}>{t("common.cancel")}</Button>
@@ -411,7 +529,12 @@ const SettingsPage: React.FC = () => {
       </Dialog>
 
       <Dialog open={openOrganizationEdit} onClose={() => setOpenOrganizationEdit(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{t("common.edit")}</DialogTitle>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <BusinessIcon color="primary" />
+            {t("settings.organization")}
+          </Stack>
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField

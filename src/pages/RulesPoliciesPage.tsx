@@ -1,6 +1,15 @@
 import React, { useCallback, useEffect, useState } from "react";
 import axios from "axios";
-import { DeleteOutline } from "@mui/icons-material";
+import {
+  Add as AddIcon,
+  DeleteOutline,
+  Refresh as RefreshIcon,
+  Rule as RuleIcon,
+  Folder as FolderIcon,
+  Save as SaveIcon,
+  Edit as EditIcon,
+  Description as DescriptionIcon,
+} from "@mui/icons-material";
 import {
   Alert,
   Button,
@@ -22,6 +31,8 @@ import {
   Tabs,
   TextField,
   Typography,
+  Box,
+  Tooltip,
 } from "@mui/material";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -298,106 +309,108 @@ const RulesPoliciesPage: React.FC = () => {
           {t("rules.no_org")}
         </Alert>
       ) : (
-        <Stack spacing={2}>
-          <Card>
-            <CardContent>
-              <Stack spacing={3}>
-                <Tabs
-                  value={activeTab}
-                  onChange={(_, value) => setActiveTab(value)}
-                  textColor="inherit"
-                  indicatorColor="primary"
-                  sx={{
-                    "& .MuiTab-root": {
-                      alignItems: "flex-start",
-                      textTransform: "none",
-                      minHeight: 56,
-                    },
-                  }}
-                >
-                  <Tab
-                    value="organization"
-                    label={t("rules.organization_tab")}
-                  />
-                  <Tab
-                    value="workspaces"
-                    label={t("rules.workspaces_tab", { count: workspaceList.length })}
-                  />
-                </Tabs>
+        <Stack spacing={3}>
+          <Card variant="outlined">
+            <Tabs
+              value={activeTab}
+              onChange={(_, value) => setActiveTab(value)}
+              textColor="inherit"
+              indicatorColor="primary"
+              sx={{
+                "& .MuiTab-root": {
+                  alignItems: "flex-start",
+                  textTransform: "none",
+                  minHeight: 56,
+                },
+              }}
+            >
+              <Tab
+                value="organization"
+                icon={<RuleIcon />}
+                iconPosition="start"
+                label={t("rules.organization_tab")}
+              />
+              <Tab
+                value="workspaces"
+                icon={<FolderIcon />}
+                iconPosition="start"
+                label={t("rules.workspaces_tab", { count: workspaceList.length })}
+              />
+            </Tabs>
 
-                {activeTab === "organization" ? (
-                  <Stack spacing={2}>
-                    <div>
+            <Box sx={{ p: 3 }}>
+              {activeTab === "organization" ? (
+                <Stack spacing={2}>
+                  <Stack direction="row" alignItems="flex-start" spacing={2}>
+                    <Box>
                       <Typography variant="h6">{t("rules.organization_title")}</Typography>
                       <Typography color="text.secondary">
                         {t("rules.organization_desc")}
                       </Typography>
-                    </div>
-                    <Stack direction="row" spacing={1}>
-                      <Button
-                        variant="outlined"
-                        onClick={() => currentOrganizationId && void loadRulesData(currentOrganizationId)}
-                        disabled={loading}
-                      >
-                        {t("common.reload")}
-                      </Button>
-                    </Stack>
-                    <TextField
-                      multiline
-                      minRows={12}
-                      fullWidth
-                      value={organizationRules}
-                      onChange={(event) => setOrganizationRules(event.target.value)}
-                      placeholder={t("rules.organization_placeholder")}
-                    />
-                    <div>
-                      <Button
-                        variant="contained"
-                        onClick={handleSaveOrganizationRules}
-                        disabled={savingOrganization}
-                      >
-                        {savingOrganization ? t("rules.organization_saving") : t("rules.organization_save")}
-                      </Button>
-                    </div>
+                    </Box>
+                    <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
+                      <Tooltip title={t("common.reload")}>
+                        <IconButton 
+                          onClick={() => currentOrganizationId && void loadRulesData(currentOrganizationId)}
+                          disabled={loading}
+                        >
+                          <RefreshIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                   </Stack>
-                ) : (
-                  <Stack spacing={2}>
-                    <div>
-                      <Typography variant="h6">{t("rules.workspaces_title")}</Typography>
-                      <Typography color="text.secondary">
-                        {t("rules.workspaces_desc")}
-                      </Typography>
-                    </div>
+                  <TextField
+                    multiline
+                    minRows={12}
+                    fullWidth
+                    value={organizationRules}
+                    onChange={(event) => setOrganizationRules(event.target.value)}
+                    placeholder={t("rules.organization_placeholder")}
+                  />
+                  <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                    <Button
+                      variant="contained"
+                      startIcon={<SaveIcon />}
+                      onClick={handleSaveOrganizationRules}
+                      disabled={savingOrganization}
+                    >
+                      {savingOrganization ? t("rules.organization_saving") : t("rules.organization_save")}
+                    </Button>
+                  </Box>
+                </Stack>
+              ) : (
+                <Stack spacing={3}>
+                    <Stack direction="row" alignItems="flex-start" spacing={2}>
+                      <Box>
+                        <Typography variant="h6">{t("rules.workspaces_title")}</Typography>
+                        <Typography color="text.secondary">
+                          {t("rules.workspaces_desc")}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
+                        <Tooltip title={t("common.new")}>
+                          <IconButton color="primary" onClick={handleCreateWorkspaceDraft}>
+                            <AddIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title={t("common.reload")}>
+                          <IconButton onClick={() => currentOrganizationId && void refreshWorkspaceList(currentOrganizationId)}>
+                            <RefreshIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </Stack>
                     <Grid container spacing={2}>
                       <Grid item xs={12} md={4}>
-                        <Card variant="outlined">
+                        <Card variant="outlined" sx={{ height: "100%" }}>
                           <CardContent>
                             <Stack spacing={2}>
-                              <Stack
-                                direction="row"
-                                alignItems="center"
-                                justifyContent="space-between"
-                                spacing={2}
-                              >
-                                <div>
-                                  <Typography variant="subtitle1">{t("rules.workspace_list")}</Typography>
-                                  <Typography variant="body2" color="text.secondary">
-                                    {t("rules.workspace_registered", { count: workspaceList.length })}
-                                  </Typography>
-                                </div>
-                                <Stack direction="row" spacing={1}>
-                                  <Button variant="outlined" size="small" onClick={handleCreateWorkspaceDraft}>
-                                    {t("common.new")}
-                                  </Button>
-                                  <Button
-                                    variant="outlined"
-                                    size="small"
-                                    onClick={() => currentOrganizationId && void refreshWorkspaceList(currentOrganizationId)}
-                                  >
-                                    {t("common.reload")}
-                                  </Button>
-                                </Stack>
-                              </Stack>
+                              <Box>
+                                <Typography variant="subtitle1">{t("rules.workspace_list")}</Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {t("rules.workspace_registered", { count: workspaceList.length })}
+                                </Typography>
+                              </Box>
                               <Divider />
                               {workspaceList.length === 0 ? (
                                 <Typography variant="body2" color="text.secondary">
@@ -496,6 +509,7 @@ const RulesPoliciesPage: React.FC = () => {
                                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                                   <Button
                                     variant="outlined"
+                                    size="small"
                                     onClick={handleLoadWorkspaceRules}
                                     disabled={loadingWorkspace}
                                   >
@@ -503,6 +517,8 @@ const RulesPoliciesPage: React.FC = () => {
                                   </Button>
                                   <Button
                                     variant="contained"
+                                    size="small"
+                                    startIcon={<SaveIcon />}
                                     onClick={handleSaveWorkspaceRules}
                                     disabled={savingWorkspace}
                                   >
@@ -525,12 +541,11 @@ const RulesPoliciesPage: React.FC = () => {
                     </Grid>
                   </Stack>
                 )}
-              </Stack>
-            </CardContent>
-          </Card>
-        </Stack>
-      )}
-      <Dialog
+              </Box>
+            </Card>
+          </Stack>
+        )}
+        <Dialog
         open={Boolean(deleteDialogWorkspace)}
         onClose={() => !deletingWorkspaceKey && setDeleteDialogWorkspace(null)}
         fullWidth

@@ -85,6 +85,22 @@ export type AuditLogRecord = {
   created_at: string;
 };
 
+export type AuditActionStats = {
+  action: string;
+  count_24h: number;
+  count_48h: number;
+  count_7d: number;
+};
+
+export type SynapraMetrics = {
+  total_queries: number;
+  total_chunks: number;
+  est_tokens_saved: number;
+  queries_last_24h: number;
+  chunks_last_24h: number;
+  est_tokens_last_24h: number;
+};
+
 export type OrganizationSettings = {
   organization_id: string;
   website_url?: string;

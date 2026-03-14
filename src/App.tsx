@@ -4,11 +4,14 @@ import { ThemeProvider, createTheme, CssBaseline } from "@mui/material";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { I18nProvider, useI18n } from "./i18n";
 import LoginPage from "./pages/LoginPage";
+import PlansPage from "./pages/PlansPage";
+import FeaturesPage from "./pages/FeaturesPage";
 import DashboardLayout from "./components/DashboardLayout";
 import DashboardPage from "./pages/DashboardPage";
 import RulesPoliciesPage from "./pages/RulesPoliciesPage";
 import LogsPage from "./pages/LogsPage";
 import SettingsPage from "./pages/SettingsPage";
+import RepositoriesPage from "./pages/RepositoriesPage";
 import ApiIntegrationsPage from "./pages/ApiIntegrationsPage";
 import SignupPage from "./pages/SignupPage";
 import SignupVerifyPage from "./pages/SignupVerifyPage";
@@ -151,6 +154,8 @@ const AppRoutes: React.FC = () => {
   if (!user) {
     return (
       <Routes>
+        <Route path="/plans" element={<PlansPage />} />
+        <Route path="/features" element={<FeaturesPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/signup/verify" element={<SignupVerifyPage />} />
         <Route path="*" element={<LoginPage />} />
@@ -167,7 +172,12 @@ const AppRoutes: React.FC = () => {
         <Route path="api" element={<ApiIntegrationsPage />} />
         <Route path="logs" element={<LogsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="repositories" element={<RepositoriesPage />} />
+        <Route path="plans" element={<PlansPage />} />
+        <Route path="features" element={<FeaturesPage />} />
       </Route>
+      <Route path="plans" element={<PlansPage />} />
+      <Route path="features" element={<FeaturesPage />} />
       <Route path="signup" element={<Navigate to="/dashboard" replace />} />
       <Route path="signup/verify" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />

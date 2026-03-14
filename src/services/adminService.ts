@@ -4,6 +4,7 @@ import type {
   ApiKey,
   ApiKeyCreateResponse,
   AuditLogRecord,
+  AuditActionStats,
   BillingProfile,
   Client,
   DashboardSummary,
@@ -131,11 +132,35 @@ export async function revokeClientApiKey(clientId: string, keyId: string) {
   await apiClient.delete(`/v1/console/clients/${clientId}/api-keys/${keyId}`);
 }
 
-export async function getAuditLogs(clientId: string) {
+export async function getAuditLogs(clientId: string, action?: string, startDate?: string, endDate?: string, limit = 20, offset = 0) {
+  const params: Record<string, string> = { client_id: clientId, limit: String(limit), offset: String(offset) };
+  if (action) {
+    params.action = action;
+  }
+  if (startDate) {
+    params.start_date = startDate;
+  }
+  if (endDate) {
+    params.end_date = endDate;
+  }
   const response = await apiClient.get<{ logs: AuditLogRecord[] }>("/v1/console/logs/audit", {
-    params: { client_id: clientId, limit: 20 },
+    params,
   });
   return asArray(response.data?.logs);
+}
+
+export async function getAuditActionStats(clientId: string) {
+  const response = await apiClient.get<{ stats: AuditActionStats[] }>("/v1/console/logs/stats", {
+    params: { client_id: clientId },
+  });
+  return asArray(response.data?.stats);
+}
+
+export async function getSynapraMetrics(clientId: string) {
+  const response = await apiClient.get<{ metrics: SynapraMetrics }>("/v1/console/synapra/metrics", {
+    params: { client_id: clientId },
+  });
+  return response.data?.metrics;
 }
 
 export async function getOrganizationSettings(clientId: string) {

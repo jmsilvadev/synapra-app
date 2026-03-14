@@ -1,6 +1,7 @@
 import React from "react";
 import { Alert, Box, Button, Typography } from "@mui/material";
-import { Google as GoogleIcon } from "@mui/icons-material";
+import { Google as GoogleIcon, PsychologyAlt as PsychologyIcon, AttachMoney as MoneyIcon } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import { useI18n } from "../i18n";
@@ -8,6 +9,7 @@ import { useI18n } from "../i18n";
 const LoginPage: React.FC = () => {
   const { loginWithGoogle, loginError } = useAuth();
   const { t } = useI18n();
+  const navigate = useNavigate();
 
   return (
     <Box
@@ -48,33 +50,39 @@ const LoginPage: React.FC = () => {
         <Typography variant="body1" align="center" color="text.secondary" sx={{ mb: 3 }}>
           {t("login.subtitle")}
         </Typography>
+
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 3 }}>
+          <Button
+            variant="outlined"
+            startIcon={<PsychologyIcon />}
+            onClick={() => navigate("/features")}
+            sx={{ py: 1.5 }}
+          >
+            {t("login.btn_what_we_solve")}
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<MoneyIcon />}
+            onClick={() => navigate("/plans")}
+            sx={{ py: 1.5 }}
+          >
+            {t("login.btn_pricing")}
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<GoogleIcon />}
+            onClick={loginWithGoogle}
+            sx={{ py: 1.5 }}
+          >
+            {t("login.google")}
+          </Button>
+        </Box>
+
         {loginError && (
           <Alert severity="error" sx={{ mb: 3 }}>
             {loginError}
           </Alert>
         )}
-        <Box sx={{ display: "flex", justifyContent: "center" }}>
-          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5, width: "100%" }}>
-            <Button
-              variant="contained"
-              startIcon={<GoogleIcon />}
-              onClick={loginWithGoogle}
-              sx={{
-                py: 1.5,
-                px: 4,
-                minWidth: 280,
-                maxWidth: "100%",
-                backgroundColor: "#00C6B8",
-                color: "#031012",
-                "&:hover": {
-                  backgroundColor: "#00B7AB",
-                },
-              }}
-            >
-              {t("login.google")}
-            </Button>
-          </Box>
-        </Box>
       </Box>
     </Box>
   );

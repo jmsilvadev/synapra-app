@@ -16,7 +16,17 @@ import {
   Stack,
   TextField,
   Typography,
+  Chip,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import KeyIcon from "@mui/icons-material/Key";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
+import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import { useAuth } from "../context/AuthContext";
 import {
   createClientApiKey,
@@ -46,7 +56,6 @@ function shellQuote(value: string) {
 
 function buildBootstrapCommand(input: {
   apiURL: string;
-  apiKeySecret: string;
   projectId: string;
   namespace: string;
 }) {
@@ -62,9 +71,10 @@ function buildBootstrapCommand(input: {
     '#!/usr/bin/env bash',
     'set -euo pipefail',
     '',
-    'mkdir -p "$HOME/.synapra"',
-    `printf "%s\\n" ${shellQuote(input.apiKeySecret)} > "$HOME/.synapra/api_key"`,
-    'chmod 600 "$HOME/.synapra/api_key"',
+    'if [ ! -f "$HOME/.synapra/api_key" ]; then',
+    '  echo "Error: API key not found. Run the save command first."',
+    '  exit 1',
+    'fi',
     '',
     'TMP_JSON="$(mktemp)"',
     'trap \'rm -f "$TMP_JSON"\' EXIT',
@@ -108,6 +118,7 @@ const ApiIntegrationsPage: React.FC = () => {
   const [deletingKeyId, setDeletingKeyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [saveApiKeyCommand, setSaveApiKeyCommand] = useState<string | null>(null);
 
   const loadKeys = async () => {
     if (!currentOrganizationId) {
@@ -148,10 +159,10 @@ const ApiIntegrationsPage: React.FC = () => {
     try {
       const key = await createClientApiKey(currentOrganizationId, label.trim());
       setKnownSecrets((current) => ({ ...current, [key.id]: key.secret }));
+      const saveCommand = `mkdir -p "$HOME/.synapra" && printf "%s\\n" '${key.secret}' > "$HOME/.synapra/api_key" && chmod 600 "$HOME/.synapra/api_key" && echo "API key saved to $HOME/.synapra/api_key"`;
+      setSaveApiKeyCommand(saveCommand);
       setOpenCreate(false);
       setLabel("agent");
-      setSuccess(t("api.success.created"));
-      await loadKeys();
     } catch (err) {
       setError(extractErrorMessage(err, t("api.generate")));
     } finally {
@@ -210,7 +221,7 @@ const ApiIntegrationsPage: React.FC = () => {
   };
 
   const handleCopyBootstrapCommand = async () => {
-    if (!bootstrapDialog || !bootstrapDialog.apiKeySecret || !bootstrapProjectId.trim() || !bootstrapNamespace.trim()) {
+    if (!bootstrapDialog || !bootstrapProjectId.trim() || !bootstrapNamespace.trim()) {
       setError(t("api.bootstrap_validation"));
       return;
     }
@@ -218,7 +229,6 @@ const ApiIntegrationsPage: React.FC = () => {
       await navigator.clipboard.writeText(
         buildBootstrapCommand({
           apiURL: apiBaseURL,
-          apiKeySecret: bootstrapDialog.apiKeySecret,
           projectId: bootstrapProjectId.trim(),
           namespace: bootstrapNamespace.trim(),
         })
@@ -226,6 +236,26 @@ const ApiIntegrationsPage: React.FC = () => {
       setSuccess(t("api.bootstrap_copied"));
     } catch {
       setError(t("api.error.copy"));
+    }
+  };
+
+  const handleCreateNewKeyForBootstrap = async () => {
+    if (!currentOrganizationId) return;
+    setError(null);
+    setSuccess(null);
+    try {
+      const key = await createClientApiKey(currentOrganizationId, `bootstrap-${Date.now()}`);
+      setKnownSecrets((current) => ({ ...current, [key.id]: key.secret }));
+      setBootstrapDialog({
+        sourceKeyId: bootstrapDialog?.sourceKeyId || key.id,
+        keyId: key.id,
+        keyLabel: key.label,
+        apiKeySecret: key.secret,
+      });
+      setSuccess(t("api.bootstrap_key_created"));
+      await loadKeys();
+    } catch (err) {
+      setError(extractErrorMessage(err, t("api.generate")));
     }
   };
 
@@ -240,7 +270,12 @@ const ApiIntegrationsPage: React.FC = () => {
             {t("api.subtitle")}
           </Typography>
         </div>
-        <Button variant="contained" onClick={() => setOpenCreate(true)} disabled={!currentOrganizationId}>
+        <Button 
+          variant="contained" 
+          startIcon={<AddCircleOutlineIcon />}
+          onClick={() => setOpenCreate(true)} 
+          disabled={!currentOrganizationId}
+        >
           {t("api.generate")}
         </Button>
       </Box>
@@ -276,43 +311,67 @@ const ApiIntegrationsPage: React.FC = () => {
         <Stack spacing={2}>
           {keys.length === 0 ? (
             <Card>
-              <CardContent>
-                <Typography variant="h6">{t("api.empty_title")}</Typography>
-                <Typography color="text.secondary">
+              <CardContent sx={{ textAlign: "center", py: 6 }}>
+                <KeyIcon sx={{ fontSize: 64, color: "text.disabled", mb: 2 }} />
+                <Typography variant="h6" gutterBottom>{t("api.empty_title")}</Typography>
+                <Typography color="text.secondary" sx={{ mb: 3 }}>
                   {t("api.empty_desc")}
                 </Typography>
+                <Button 
+                  variant="contained" 
+                  startIcon={<AddCircleOutlineIcon />}
+                  onClick={() => setOpenCreate(true)}
+                >
+                  {t("api.generate")}
+                </Button>
               </CardContent>
             </Card>
           ) : (
             keys.map((key) => (
-              <Card key={key.id}>
+              <Card key={key.id} variant="outlined">
                 <CardContent>
-                  <Stack spacing={1}>
-                    <Typography variant="h6">{key.label}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {t("api.preview")}: {key.preview || t("api.no_preview")}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {t("api.created_at")}: {key.created_at || "-"}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {t("api.status")}: {key.revoked_at ? t("api.revoked_at", { date: key.revoked_at }) : t("api.active")}
-                    </Typography>
+                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+                    <Stack spacing={1}>
+                      <Stack direction="row" alignItems="center" spacing={1}>
+                        <KeyIcon color="primary" />
+                        <Typography variant="h6">{key.label}</Typography>
+                        <Chip 
+                          size="small" 
+                          icon={key.revoked_at ? <CancelIcon /> : <CheckCircleIcon />}
+                          label={key.revoked_at ? t("api.revoked_at", { date: key.revoked_at }) : t("api.active")}
+                          color={key.revoked_at ? "error" : "success"}
+                          variant="outlined"
+                        />
+                      </Stack>
+                      <Typography variant="body2" color="text.secondary">
+                        {t("api.preview")}: <Chip size="small" label={key.preview || "-"} variant="outlined" />
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {t("api.created_at")}: {key.created_at || "-"}
+                      </Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={1}>
+                      <Tooltip title={t("api.bootstrap_button")}>
+                        <IconButton 
+                          color="primary"
+                          onClick={() => void handleOpenBootstrap(key)}
+                          disabled={Boolean(key.revoked_at)}
+                        >
+                          <CloudDownloadIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={t("common.delete")}>
+                        <IconButton 
+                          color="error"
+                          onClick={() => setDeleteDialog({ keyId: key.id, keyLabel: key.label })}
+                          disabled={Boolean(key.revoked_at) || deletingKeyId === key.id}
+                        >
+                          {deletingKeyId === key.id ? <CircularProgress size={24} /> : <DeleteOutlineIcon />}
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
                   </Stack>
                 </CardContent>
-                <Divider />
-                <CardActions sx={{ px: 2, py: 1.5 }}>
-                  <Button onClick={() => void handleOpenBootstrap(key)} disabled={creatingBootstrapKey || Boolean(key.revoked_at)}>
-                    {t("api.bootstrap_button")}
-                  </Button>
-                  <Button
-                    color="error"
-                    onClick={() => setDeleteDialog({ keyId: key.id, keyLabel: key.label })}
-                    disabled={Boolean(key.revoked_at) || deletingKeyId === key.id}
-                  >
-                    {deletingKeyId === key.id ? t("api.deleting") : t("common.delete")}
-                  </Button>
-                </CardActions>
               </Card>
             ))
           )}
@@ -320,12 +379,17 @@ const ApiIntegrationsPage: React.FC = () => {
       )}
 
       <Dialog open={openCreate} onClose={() => setOpenCreate(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{t("api.dialog_title")}</DialogTitle>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <AddCircleOutlineIcon color="primary" />
+            {t("api.dialog_title")}
+          </Stack>
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <Typography color="text.secondary">
+            <Alert severity="info">
               {t("api.dialog_desc")}
-            </Typography>
+            </Alert>
             <TextField
               autoFocus
               fullWidth
@@ -338,20 +402,49 @@ const ApiIntegrationsPage: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenCreate(false)}>{t("common.cancel")}</Button>
-          <Button onClick={handleCreate} variant="contained" disabled={creating}>
+          <Button onClick={handleCreate} variant="contained" disabled={creating} startIcon={<KeyIcon />}>
             {creating ? t("api.dialog_generating") : t("api.dialog_generate")}
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog open={openBootstrap} onClose={() => setOpenBootstrap(false)} fullWidth maxWidth="md">
-        <DialogTitle>{t("api.bootstrap_title")}</DialogTitle>
+      <Dialog open={!!saveApiKeyCommand} onClose={() => setSaveApiKeyCommand(null)} fullWidth maxWidth="sm">
+        <DialogTitle>{t("api.save_key_title")}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <Typography color="text.secondary">
-              {t("api.bootstrap_desc")}
+            <Alert severity="success">{t("api.save_key_success")}</Alert>
+            <Typography variant="body2" color="text.secondary">
+              {t("api.save_key_desc")}
             </Typography>
-            <Alert severity="warning">{t("api.bootstrap_secret_warning")}</Alert>
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label={t("api.save_key_command")}
+              value={saveApiKeyCommand || ""}
+              InputProps={{ readOnly: true }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSaveApiKeyCommand(null)} variant="contained">
+            {t("common.close")}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={openBootstrap} onClose={() => setOpenBootstrap(false)} fullWidth maxWidth="md">
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <CloudDownloadIcon color="primary" />
+            {t("api.bootstrap_title")}
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Alert severity="info">
+              {t("api.bootstrap_desc")}
+            </Alert>
             <TextField
               fullWidth
               label={t("api.bootstrap_key_label")}
@@ -379,7 +472,6 @@ const ApiIntegrationsPage: React.FC = () => {
                 bootstrapDialog
                   ? buildBootstrapCommand({
                       apiURL: apiBaseURL,
-                      apiKeySecret: bootstrapDialog.apiKeySecret,
                       projectId: bootstrapProjectId.trim() || "<PROJECT_ID>",
                       namespace: bootstrapNamespace.trim() || "workspace",
                     })
