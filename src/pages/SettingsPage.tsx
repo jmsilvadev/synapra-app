@@ -3,8 +3,8 @@ import {
   Alert,
   Button,
   Card,
-  CardActions,
   CardContent,
+  CardHeader,
   Chip,
   CircularProgress,
   Container,
@@ -21,6 +21,7 @@ import {
   Box,
   IconButton,
   Tooltip,
+  Snackbar,
 } from "@mui/material";
 import {
   Business as BusinessIcon,
@@ -32,6 +33,7 @@ import {
   Person as PersonIcon,
   LocationOn as LocationIcon,
   Badge as BadgeIcon,
+  OpenInNew as OpenInNewIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
@@ -44,6 +46,7 @@ import {
 } from "../services/adminService";
 import { extractErrorMessage } from "../services/apiClient";
 import { getPublicPlans } from "../services/publicService";
+import { getBillingPortal } from "../services/billingService";
 import type { BillingProfile, Client, Subscription } from "../types/admin";
 
 function formatDate(locale: string, value?: string) {
@@ -84,6 +87,7 @@ const SettingsPage: React.FC = () => {
     postal_code: "",
     country_code: "",
   });
+  const [portalLoading, setPortalLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -205,6 +209,20 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  const handleBillingPortal = async () => {
+    setPortalLoading(true);
+    try {
+      const portal = await getBillingPortal();
+      if (portal.url) {
+        window.open(portal.url, "_blank");
+      }
+    } catch (err) {
+      setError(extractErrorMessage(err, t("settings.portal_error")));
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
   return (
     <Container>
       <Typography variant="h4" sx={{ mb: 3 }}>{t("settings.title")}</Typography>
@@ -272,6 +290,19 @@ const SettingsPage: React.FC = () => {
                   </Stack>
                 </Grid>
               </Grid>
+              {subscription?.provider === "stripe" && (
+                <Box sx={{ mt: 2 }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<OpenInNewIcon />}
+                    onClick={handleBillingPortal}
+                    disabled={portalLoading}
+                  >
+                    {portalLoading ? t("settings.loading") : t("settings.manage_billing", { defaultValue: "Manage Billing" })}
+                  </Button>
+                </Box>
+              )}
             </CardContent>
           </Card>
 

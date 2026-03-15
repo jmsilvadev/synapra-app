@@ -15,6 +15,7 @@ import RepositoriesPage from "./pages/RepositoriesPage";
 import ApiIntegrationsPage from "./pages/ApiIntegrationsPage";
 import SignupPage from "./pages/SignupPage";
 import SignupVerifyPage from "./pages/SignupVerifyPage";
+import AuthCliPage from "./pages/AuthCliPage";
 
 const theme = createTheme({
   palette: {
@@ -158,6 +159,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/features" element={<FeaturesPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/signup/verify" element={<SignupVerifyPage />} />
+        <Route path="/auth/cli" element={<AuthCliPage />} />
         <Route path="*" element={<LoginPage />} />
       </Routes>
     );
@@ -165,6 +167,7 @@ const AppRoutes: React.FC = () => {
 
   return (
     <Routes>
+      <Route path="/auth/cli" element={<AuthCliPage />} />
       <Route path="/" element={<DashboardLayout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
