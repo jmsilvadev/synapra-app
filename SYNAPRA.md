@@ -21,11 +21,49 @@ Use this file as the contract for how the agent should query Synapra, not as an 
 
 - Use `POST /v1/knowledge/search` on `api_url` as the default discovery step before opening many local files.
 - Query with the `project` and `namespace` declared in this file, authenticated with the current client's API key.
-- When calling Synapra via HTTP (for example with `curl`), always send a JSON payload that includes `project_id`, `namespace` and `adapter` matching this workspace:
-  -d '{"project_id":"synapra","namespace":"workspace","adapter":"agents"}'
 - Follow `navigate_to` refs like `path:line` and `anchor_ref` refs like `path#section` before asking for more code reading.
 - If search returns weak or empty evidence, call `GET /v1/knowledge/status` for the same `project` and `namespace` before assuming Synapra has no data.
 - Effective visibility is scoped by the authenticated API key and organization, not only by `project` and `namespace`.
+
+## API Examples
+
+### Search (POST /v1/knowledge/search)
+
+```bash
+curl -s -X POST "http://localhost:8080/v1/knowledge/search" \
+  -H "X-API-Key: $(cat ~/.synapra/api_key)" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id":"synapra",
+    "namespace":"workspace",
+    "query":"your search query"
+  }'
+```
+
+### Status (GET /v1/knowledge/status)
+
+```bash
+curl -s "http://localhost:8080/v1/knowledge/status?project_id=synapra&namespace=workspace" \
+  -H "X-API-Key: $(cat ~/.synapra/api_key)"
+```
+
+### Sync (POST /v1/knowledge/sync)
+
+```bash
+curl -s -X POST "http://localhost:8080/v1/knowledge/sync" \
+  -H "X-API-Key: $(cat ~/.synapra/api_key)" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id":"synapra",
+    "namespace":"workspace",
+    "files":[
+      {
+        "source_path":"filename.md",
+        "content":"# Markdown content here"
+      }
+    ]
+  }'
+```
 
 ## Synapra API Key
 

@@ -41,15 +41,12 @@ const LoginPage: React.FC = () => {
           sx={{
             display: "block",
             width: "100%",
-            maxWidth: 420,
+            maxWidth: 520,
             mx: "auto",
-            mb: 3,
+            mb: 0,
             borderRadius: 3,
           }}
         />
-        <Typography variant="body1" align="center" color="text.secondary" sx={{ mb: 3 }}>
-          {t("login.subtitle")}
-        </Typography>
 
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 3 }}>
           <Button

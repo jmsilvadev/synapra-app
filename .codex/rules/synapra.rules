@@ -1,0 +1,12 @@
+# Synapra Integration - Codex CLI
+# Este arquivo é carregado automaticamente pelo Codex
+
+# Sempre consulte Synapra para descoberta de projeto antes de ler arquivos locais
+# Use: curl -s -X POST "http://localhost:8080/v1/knowledge/search" ...
+
+# Regras Synapra:
+# 1. Leia SYNAPRA.md primeiro
+# 2. Use POST /v1/knowledge/search para descoberta
+# 3. Use GET /v1/knowledge/status para verificar indexação
+# 4. Use POST /v1/knowledge/sync para salvar conhecimento durável
+
