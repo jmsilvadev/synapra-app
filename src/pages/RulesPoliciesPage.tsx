@@ -7,8 +7,8 @@ import {
   Rule as RuleIcon,
   Folder as FolderIcon,
   Save as SaveIcon,
-  Edit as EditIcon,
-  Description as DescriptionIcon,
+  Source as SourceIcon,
+  AccountTree as ProjectIcon,
 } from "@mui/icons-material";
 import {
   Alert,
@@ -37,105 +37,179 @@ import {
 import { useAuth } from "../context/AuthContext";
 import {
   getOrganizationRules,
-  getWorkspaceRules,
-  listWorkspaceRules,
-  deleteWorkspaceRules,
   updateOrganizationRules,
-  updateWorkspaceRules,
+  listProjectRules,
+  getProjectRules,
+  updateProjectRules,
+  deleteProjectRules,
+  listNamespaceRules,
+  getNamespaceRules,
+  updateNamespaceRules,
+  deleteNamespaceRules,
+  listRepositoryRules,
+  getRepositoryRules,
+  updateRepositoryRules,
+  deleteRepositoryRules,
 } from "../services/adminService";
 import { useI18n } from "../i18n";
 import { extractErrorMessage } from "../services/apiClient";
-import type { WorkspaceRuleSummary } from "../types/admin";
-
-function workspaceKey(projectId: string, namespace: string) {
-  return `${projectId}::${namespace}`;
-}
+import type { ProjectRuleSummary, NamespaceRuleSummary, RepositoryRuleSummary } from "../types/admin";
 
 function isNotFoundError(error: unknown) {
   return axios.isAxiosError(error) && error.response?.status === 404;
 }
 
+type RulesTab = "organization" | "projects" | "namespaces" | "repositories";
+
 const RulesPoliciesPage: React.FC = () => {
   const { currentOrganizationId } = useAuth();
   const { t } = useI18n();
+  
+  const [activeTab, setActiveTab] = useState<RulesTab>("organization");
+  
   const [organizationRules, setOrganizationRules] = useState("");
-  const [workspaceRules, setWorkspaceRules] = useState("");
-  const [workspaceList, setWorkspaceList] = useState<WorkspaceRuleSummary[]>([]);
-  const [projectId, setProjectId] = useState("");
-  const [namespace, setNamespace] = useState("");
-  const [activeTab, setActiveTab] = useState<"organization" | "workspaces">("organization");
+  const [projectList, setProjectList] = useState<ProjectRuleSummary[]>([]);
+  const [namespaceList, setNamespaceList] = useState<NamespaceRuleSummary[]>([]);
+  const [repositoryList, setRepositoryList] = useState<RepositoryRuleSummary[]>([]);
+  
+  const [selectedProjectUuid, setSelectedProjectUuid] = useState("");
+  const [selectedNamespaceUuid, setSelectedNamespaceUuid] = useState("");
+  const [selectedRepositoryUuid, setSelectedRepositoryUuid] = useState("");
+  
+  const [projectRules, setProjectRules] = useState("");
+  const [namespaceRules, setNamespaceRules] = useState("");
+  const [repositoryRules, setRepositoryRules] = useState("");
+  
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadingWorkspace, setLoadingWorkspace] = useState(false);
-  const [savingOrganization, setSavingOrganization] = useState(false);
-  const [savingWorkspace, setSavingWorkspace] = useState(false);
-  const [deletingWorkspaceKey, setDeletingWorkspaceKey] = useState<string | null>(null);
-  const [deleteDialogWorkspace, setDeleteDialogWorkspace] = useState<WorkspaceRuleSummary | null>(null);
+  const [loadingRules, setLoadingRules] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
+  const [deleteDialogProject, setDeleteDialogProject] = useState<ProjectRuleSummary | null>(null);
+  const [deleteDialogNamespace, setDeleteDialogNamespace] = useState<NamespaceRuleSummary | null>(null);
+  const [deleteDialogRepository, setDeleteDialogRepository] = useState<RepositoryRuleSummary | null>(null);
 
-  const refreshWorkspaceList = useCallback(async (clientId: string) => {
-    const workspaces = await listWorkspaceRules(clientId);
-    setWorkspaceList(workspaces);
-    return workspaces;
+  const loadOrganizationRules = useCallback(async (clientId: string) => {
+    try {
+      const orgRules = await getOrganizationRules(clientId);
+      setOrganizationRules(orgRules.rules_markdown || "");
+    } catch (err) {
+      if (!isNotFoundError(err)) {
+        throw err;
+      }
+      setOrganizationRules("");
+    }
   }, []);
 
-  const loadWorkspaceRules = useCallback(async (clientId: string, nextProjectId: string, nextNamespace: string) => {
-    if (!nextProjectId.trim() || !nextNamespace.trim()) {
-      setWorkspaceRules("");
-      return;
-    }
+  const loadProjectList = useCallback(async (clientId: string) => {
+    const projects = await listProjectRules(clientId);
+    setProjectList(projects);
+    return projects;
+  }, []);
 
-    setLoadingWorkspace(true);
+  const loadNamespaceList = useCallback(async (clientId: string) => {
+    const namespaces = await listNamespaceRules(clientId);
+    setNamespaceList(namespaces);
+    return namespaces;
+  }, []);
+
+  const loadRepositoryList = useCallback(async (clientId: string) => {
+    const repos = await listRepositoryRules(clientId);
+    setRepositoryList(repos);
+    return repos;
+  }, []);
+
+  const loadProjectRulesContent = useCallback(async (clientId: string, projectUuid: string) => {
+    setLoadingRules(true);
     try {
-      const response = await getWorkspaceRules(clientId, nextProjectId.trim(), nextNamespace.trim());
-      setWorkspaceRules(response?.rules_markdown || "");
+      const rules = await getProjectRules(clientId, projectUuid);
+      setProjectRules(rules.rules_markdown || "");
     } catch (err) {
       if (isNotFoundError(err)) {
-        setWorkspaceRules("");
+        setProjectRules("");
         return;
       }
       throw err;
     } finally {
-      setLoadingWorkspace(false);
+      setLoadingRules(false);
     }
   }, []);
 
-  const loadRulesData = useCallback(async (clientId: string) => {
+  const loadNamespaceRulesContent = useCallback(async (clientId: string, namespaceUuid: string) => {
+    setLoadingRules(true);
+    try {
+      const rules = await getNamespaceRules(clientId, namespaceUuid);
+      setNamespaceRules(rules.rules_markdown || "");
+    } catch (err) {
+      if (isNotFoundError(err)) {
+        setNamespaceRules("");
+        return;
+      }
+      throw err;
+    } finally {
+      setLoadingRules(false);
+    }
+  }, []);
+
+  const loadRepositoryRulesContent = useCallback(async (clientId: string, repositoryUuid: string) => {
+    setLoadingRules(true);
+    try {
+      const rules = await getRepositoryRules(clientId, repositoryUuid);
+      setRepositoryRules(rules.rules_markdown || "");
+    } catch (err) {
+      if (isNotFoundError(err)) {
+        setRepositoryRules("");
+        return;
+      }
+      throw err;
+    } finally {
+      setLoadingRules(false);
+    }
+  }, []);
+
+  const loadAllData = useCallback(async (clientId: string) => {
     setLoading(true);
     setError(null);
     setSuccess(null);
 
     try {
-      try {
-        const orgRules = await getOrganizationRules(clientId);
-        setOrganizationRules(orgRules.rules_markdown || "");
-      } catch (err) {
-        if (isNotFoundError(err)) {
-          setOrganizationRules("");
-        } else {
-          throw err;
-        }
+      await loadOrganizationRules(clientId);
+      const [projects, namespaces, repos] = await Promise.all([
+        loadProjectList(clientId),
+        loadNamespaceList(clientId),
+        loadRepositoryList(clientId),
+      ]);
+
+      if (projects.length > 0) {
+        setSelectedProjectUuid(projects[0].project_uuid);
+        await loadProjectRulesContent(clientId, projects[0].project_uuid);
+      } else {
+        setSelectedProjectUuid("");
+        setProjectRules("");
       }
 
-      const workspaces = await refreshWorkspaceList(clientId);
-
-      if (workspaces.length > 0) {
-        setActiveTab("workspaces");
-        const firstWorkspace = workspaces[0];
-        setProjectId(firstWorkspace.project_id);
-        setNamespace(firstWorkspace.namespace);
-        await loadWorkspaceRules(clientId, firstWorkspace.project_id, firstWorkspace.namespace);
+      if (namespaces.length > 0) {
+        setSelectedNamespaceUuid(namespaces[0].namespace_uuid);
+        await loadNamespaceRulesContent(clientId, namespaces[0].namespace_uuid);
       } else {
-        setProjectId("");
-        setNamespace("");
-        setWorkspaceRules("");
+        setSelectedNamespaceUuid("");
+        setNamespaceRules("");
+      }
+
+      if (repos.length > 0) {
+        setSelectedRepositoryUuid(repos[0].repository_uuid);
+        await loadRepositoryRulesContent(clientId, repos[0].repository_uuid);
+      } else {
+        setSelectedRepositoryUuid("");
+        setRepositoryRules("");
       }
     } catch (err) {
       setError(extractErrorMessage(err, t("rules.load_error")));
     } finally {
       setLoading(false);
     }
-  }, [loadWorkspaceRules, refreshWorkspaceList]);
+  }, [loadOrganizationRules, loadProjectList, loadNamespaceList, loadRepositoryList, loadProjectRulesContent, loadNamespaceRulesContent, loadRepositoryRulesContent, t]);
 
   useEffect(() => {
     const load = async () => {
@@ -143,96 +217,20 @@ const RulesPoliciesPage: React.FC = () => {
         setLoading(false);
         return;
       }
-
-      await loadRulesData(currentOrganizationId);
+      await loadAllData(currentOrganizationId);
     };
-
     void load();
-  }, [currentOrganizationId, loadRulesData]);
-
-  const handleWorkspaceSelect = async (nextProjectId: string, nextNamespace: string) => {
-    if (!currentOrganizationId) {
-      return;
-    }
-    setProjectId(nextProjectId);
-    setNamespace(nextNamespace);
-    setError(null);
-    setSuccess(null);
-    await loadWorkspaceRules(currentOrganizationId, nextProjectId, nextNamespace);
-  };
-
-  const handleCreateWorkspaceDraft = () => {
-    setProjectId("");
-    setNamespace("");
-    setWorkspaceRules("");
-    setError(null);
-    setSuccess(null);
-  };
-
-  const handleLoadWorkspaceRules = async () => {
-    if (!currentOrganizationId) {
-      return;
-    }
-      if (!projectId.trim() || !namespace.trim()) {
-      setError(t("rules.validation.workspace_lookup"));
-      setSuccess(null);
-      return;
-    }
-
-    setError(null);
-    setSuccess(null);
-    await loadWorkspaceRules(currentOrganizationId, projectId, namespace);
-    setSuccess(t("rules.success.workspace_loaded"));
-  };
-
-  const handleDeleteWorkspace = async (targetProjectId: string, targetNamespace: string) => {
-    if (!currentOrganizationId) {
-      return;
-    }
-
-    const targetKey = workspaceKey(targetProjectId, targetNamespace);
-    setDeletingWorkspaceKey(targetKey);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      await deleteWorkspaceRules(currentOrganizationId, targetProjectId, targetNamespace);
-      const updatedWorkspaces = await refreshWorkspaceList(currentOrganizationId);
-
-      if (projectId === targetProjectId && namespace === targetNamespace) {
-        const nextWorkspace = updatedWorkspaces[0];
-        if (nextWorkspace) {
-          setProjectId(nextWorkspace.project_id);
-          setNamespace(nextWorkspace.namespace);
-          await loadWorkspaceRules(
-            currentOrganizationId,
-            nextWorkspace.project_id,
-            nextWorkspace.namespace
-          );
-        } else {
-          handleCreateWorkspaceDraft();
-        }
-      }
-
-      setSuccess(t("rules.success.workspace_deleted"));
-    } catch (err) {
-      setError(extractErrorMessage(err, t("rules.delete_workspace")));
-    } finally {
-      setDeletingWorkspaceKey(null);
-    }
-  };
+  }, [currentOrganizationId, loadAllData]);
 
   const handleSaveOrganizationRules = async () => {
-    if (!currentOrganizationId) {
-      return;
-    }
+    if (!currentOrganizationId) return;
     if (!organizationRules.trim()) {
       setError(t("rules.validation.organization_empty"));
       setSuccess(null);
       return;
     }
 
-    setSavingOrganization(true);
+    setSaving(true);
     setError(null);
     setSuccess(null);
     try {
@@ -242,47 +240,273 @@ const RulesPoliciesPage: React.FC = () => {
     } catch (err) {
       setError(extractErrorMessage(err, t("rules.organization_save")));
     } finally {
-      setSavingOrganization(false);
+      setSaving(false);
     }
   };
 
-  const handleSaveWorkspaceRules = async () => {
-    if (!currentOrganizationId) {
-      return;
-    }
-    const trimmedProjectId = projectId.trim();
-    const trimmedNamespace = namespace.trim();
-    if (!trimmedProjectId || !trimmedNamespace) {
-      setError(t("rules.validation.workspace_identity"));
-      setSuccess(null);
-      return;
-    }
-    if (!workspaceRules.trim()) {
-      setError(t("rules.validation.workspace_empty"));
+  const handleProjectSelect = async (projectUuid: string) => {
+    if (!currentOrganizationId) return;
+    setSelectedProjectUuid(projectUuid);
+    setError(null);
+    setSuccess(null);
+    await loadProjectRulesContent(currentOrganizationId, projectUuid);
+  };
+
+  const handleSaveProjectRules = async () => {
+    if (!currentOrganizationId || !selectedProjectUuid) return;
+    if (!projectRules.trim()) {
+      setError(t("rules.validation.project_empty"));
       setSuccess(null);
       return;
     }
 
-    setSavingWorkspace(true);
+    setSaving(true);
     setError(null);
     setSuccess(null);
     try {
-      const response = await updateWorkspaceRules(currentOrganizationId, {
-        project_id: trimmedProjectId,
-        namespace: trimmedNamespace,
-        rules_markdown: workspaceRules,
-      });
-      setProjectId(trimmedProjectId);
-      setNamespace(trimmedNamespace);
-      setWorkspaceRules(response.rules_markdown || "");
-      await refreshWorkspaceList(currentOrganizationId);
-      setSuccess(t("rules.success.workspace_saved"));
+      await updateProjectRules(currentOrganizationId, selectedProjectUuid, projectRules);
+      await loadProjectList(currentOrganizationId);
+      setSuccess(t("rules.success.project_saved"));
     } catch (err) {
-      setError(extractErrorMessage(err, t("rules.save_workspace")));
+      setError(extractErrorMessage(err, t("rules.project_save")));
     } finally {
-      setSavingWorkspace(false);
+      setSaving(false);
     }
   };
+
+  const handleDeleteProjectRules = async (projectUuid: string) => {
+    if (!currentOrganizationId) return;
+    setDeletingKey(projectUuid);
+    setError(null);
+    setSuccess(null);
+    try {
+      await deleteProjectRules(currentOrganizationId, projectUuid);
+      const updated = await loadProjectList(currentOrganizationId);
+      if (selectedProjectUuid === projectUuid) {
+        const next = updated[0];
+        if (next) {
+          setSelectedProjectUuid(next.project_uuid);
+          await loadProjectRulesContent(currentOrganizationId, next.project_uuid);
+        } else {
+          setSelectedProjectUuid("");
+          setProjectRules("");
+        }
+      }
+      setSuccess(t("rules.success.project_deleted"));
+    } catch (err) {
+      setError(extractErrorMessage(err, t("rules.delete_project")));
+    } finally {
+      setDeletingKey(null);
+    }
+  };
+
+  const handleNamespaceSelect = async (namespaceUuid: string) => {
+    if (!currentOrganizationId) return;
+    setSelectedNamespaceUuid(namespaceUuid);
+    setError(null);
+    setSuccess(null);
+    await loadNamespaceRulesContent(currentOrganizationId, namespaceUuid);
+  };
+
+  const handleSaveNamespaceRules = async () => {
+    if (!currentOrganizationId || !selectedNamespaceUuid) return;
+    if (!namespaceRules.trim()) {
+      setError(t("rules.validation.namespace_empty"));
+      setSuccess(null);
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await updateNamespaceRules(currentOrganizationId, selectedNamespaceUuid, namespaceRules);
+      await loadNamespaceList(currentOrganizationId);
+      setSuccess(t("rules.success.namespace_saved"));
+    } catch (err) {
+      setError(extractErrorMessage(err, t("rules.namespace_save")));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteNamespaceRules = async (namespaceUuid: string) => {
+    if (!currentOrganizationId) return;
+    setDeletingKey(namespaceUuid);
+    setError(null);
+    setSuccess(null);
+    try {
+      await deleteNamespaceRules(currentOrganizationId, namespaceUuid);
+      const updated = await loadNamespaceList(currentOrganizationId);
+      if (selectedNamespaceUuid === namespaceUuid) {
+        const next = updated[0];
+        if (next) {
+          setSelectedNamespaceUuid(next.namespace_uuid);
+          await loadNamespaceRulesContent(currentOrganizationId, next.namespace_uuid);
+        } else {
+          setSelectedNamespaceUuid("");
+          setNamespaceRules("");
+        }
+      }
+      setSuccess(t("rules.success.namespace_deleted"));
+    } catch (err) {
+      setError(extractErrorMessage(err, t("rules.delete_namespace")));
+    } finally {
+      setDeletingKey(null);
+    }
+  };
+
+  const handleRepositorySelect = async (repositoryUuid: string) => {
+    if (!currentOrganizationId) return;
+    setSelectedRepositoryUuid(repositoryUuid);
+    setError(null);
+    setSuccess(null);
+    await loadRepositoryRulesContent(currentOrganizationId, repositoryUuid);
+  };
+
+  const handleSaveRepositoryRules = async () => {
+    if (!currentOrganizationId || !selectedRepositoryUuid) return;
+    if (!repositoryRules.trim()) {
+      setError(t("rules.validation.repository_empty"));
+      setSuccess(null);
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await updateRepositoryRules(currentOrganizationId, selectedRepositoryUuid, repositoryRules);
+      await loadRepositoryList(currentOrganizationId);
+      setSuccess(t("rules.success.repository_saved"));
+    } catch (err) {
+      setError(extractErrorMessage(err, t("rules.repository_save")));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteRepositoryRules = async (repositoryUuid: string) => {
+    if (!currentOrganizationId) return;
+    setDeletingKey(repositoryUuid);
+    setError(null);
+    setSuccess(null);
+    try {
+      await deleteRepositoryRules(currentOrganizationId, repositoryUuid);
+      const updated = await loadRepositoryList(currentOrganizationId);
+      if (selectedRepositoryUuid === repositoryUuid) {
+        const next = updated[0];
+        if (next) {
+          setSelectedRepositoryUuid(next.repository_uuid);
+          await loadRepositoryRulesContent(currentOrganizationId, next.repository_uuid);
+        } else {
+          setSelectedRepositoryUuid("");
+          setRepositoryRules("");
+        }
+      }
+      setSuccess(t("rules.success.repository_deleted"));
+    } catch (err) {
+      setError(extractErrorMessage(err, t("rules.delete_repository")));
+    } finally {
+      setDeletingKey(null);
+    }
+  };
+
+  const renderRulesEditor = (
+    rulesContent: string,
+    setRulesContent: (v: string) => void,
+    placeholder: string,
+    onSave: () => Promise<void>,
+    saving: boolean,
+    loadingRulesContent: boolean
+  ) => (
+    <TextField
+      multiline
+      minRows={12}
+      fullWidth
+      value={rulesContent}
+      onChange={(e) => setRulesContent(e.target.value)}
+      placeholder={placeholder}
+      disabled={loadingRulesContent}
+    />
+  );
+
+  const renderItemList = <T extends { created_at?: string; updated_at?: string }>(
+    items: T[],
+    selectedKey: string,
+    getKey: (item: T) => string,
+    getLabel: (item: T) => string,
+    getSublabel: (item: T) => string,
+    onSelect: (key: string) => void,
+    onDelete: (key: string) => void,
+    deleting: string | null
+  ) => (
+    <Stack spacing={1}>
+      {items.length === 0 ? (
+        <Typography variant="body2" color="text.secondary">
+          {t("rules.empty_list")}
+        </Typography>
+      ) : (
+        items.map((item) => {
+          const key = getKey(item);
+          const selected = key === selectedKey;
+          return (
+            <Card
+              key={key}
+              variant="outlined"
+              sx={{
+                cursor: "pointer",
+                borderColor: selected ? "rgba(0, 224, 255, 0.45)" : "rgba(0, 198, 184, 0.10)",
+              }}
+              onClick={() => void onSelect(key)}
+            >
+              <CardContent sx={{ "&:last-child": { pb: 2 } }}>
+                <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
+                  <Stack spacing={1}>
+                    <Typography variant="subtitle2">{getLabel(item)}</Typography>
+                    <Chip
+                      label={getSublabel(item)}
+                      size="small"
+                      color={selected ? "primary" : "default"}
+                      variant="outlined"
+                      sx={{ width: "fit-content" }}
+                    />
+                  </Stack>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    disabled={deleting === key}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(key);
+                    }}
+                  >
+                    <DeleteOutline fontSize="small" />
+                  </IconButton>
+                </Stack>
+              </CardContent>
+            </Card>
+          );
+        })
+      )}
+    </Stack>
+  );
+
+  if (loading) {
+    return (
+      <Container>
+        <CircularProgress />
+      </Container>
+    );
+  }
+
+  if (!currentOrganizationId) {
+    return (
+      <Container>
+        <Alert severity="info">{t("rules.no_org")}</Alert>
+      </Container>
+    );
+  }
 
   return (
     <Container>
@@ -292,294 +516,344 @@ const RulesPoliciesPage: React.FC = () => {
       <Typography color="text.secondary" sx={{ mb: 3 }}>
         {t("rules.subtitle")}
       </Typography>
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
-      {success && (
-        <Alert severity="success" sx={{ mb: 3 }}>
-          {success}
-        </Alert>
-      )}
-      {loading ? (
-        <CircularProgress />
-      ) : !currentOrganizationId ? (
-        <Alert severity="info">
-          {t("rules.no_org")}
-        </Alert>
-      ) : (
-        <Stack spacing={3}>
-          <Card variant="outlined">
-            <Tabs
-              value={activeTab}
-              onChange={(_, value) => setActiveTab(value)}
-              textColor="inherit"
-              indicatorColor="primary"
-              sx={{
-                "& .MuiTab-root": {
-                  alignItems: "flex-start",
-                  textTransform: "none",
-                  minHeight: 56,
-                },
-              }}
-            >
-              <Tab
-                value="organization"
-                icon={<RuleIcon />}
-                iconPosition="start"
-                label={t("rules.organization_tab")}
-              />
-              <Tab
-                value="workspaces"
-                icon={<FolderIcon />}
-                iconPosition="start"
-                label={t("rules.workspaces_tab", { count: workspaceList.length })}
-              />
-            </Tabs>
+      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
 
-            <Box sx={{ p: 3 }}>
-              {activeTab === "organization" ? (
-                <Stack spacing={2}>
-                  <Stack direction="row" alignItems="flex-start" spacing={2}>
-                    <Box>
-                      <Typography variant="h6">{t("rules.organization_title")}</Typography>
-                      <Typography color="text.secondary">
-                        {t("rules.organization_desc")}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
-                      <Tooltip title={t("common.reload")}>
-                        <IconButton 
-                          onClick={() => currentOrganizationId && void loadRulesData(currentOrganizationId)}
-                          disabled={loading}
-                        >
-                          <RefreshIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </Stack>
-                  <TextField
-                    multiline
-                    minRows={12}
-                    fullWidth
-                    value={organizationRules}
-                    onChange={(event) => setOrganizationRules(event.target.value)}
-                    placeholder={t("rules.organization_placeholder")}
-                  />
-                  <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                    <Button
-                      variant="contained"
-                      startIcon={<SaveIcon />}
-                      onClick={handleSaveOrganizationRules}
-                      disabled={savingOrganization}
-                    >
-                      {savingOrganization ? t("rules.organization_saving") : t("rules.organization_save")}
-                    </Button>
-                  </Box>
-                </Stack>
-              ) : (
-                <Stack spacing={3}>
-                    <Stack direction="row" alignItems="flex-start" spacing={2}>
-                      <Box>
-                        <Typography variant="h6">{t("rules.workspaces_title")}</Typography>
-                        <Typography color="text.secondary">
-                          {t("rules.workspaces_desc")}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
-                        <Tooltip title={t("common.new")}>
-                          <IconButton color="primary" onClick={handleCreateWorkspaceDraft}>
-                            <AddIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title={t("common.reload")}>
-                          <IconButton onClick={() => currentOrganizationId && void refreshWorkspaceList(currentOrganizationId)}>
-                            <RefreshIcon />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </Stack>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} md={4}>
-                        <Card variant="outlined" sx={{ height: "100%" }}>
-                          <CardContent>
-                            <Stack spacing={2}>
-                              <Box>
-                                <Typography variant="subtitle1">{t("rules.workspace_list")}</Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                  {t("rules.workspace_registered", { count: workspaceList.length })}
-                                </Typography>
-                              </Box>
-                              <Divider />
-                              {workspaceList.length === 0 ? (
-                                <Typography variant="body2" color="text.secondary">
-                                  {t("rules.workspace_empty")}
-                                </Typography>
-                              ) : (
-                                <Stack spacing={1}>
-                                  {workspaceList.map((item) => {
-                                    const selected =
-                                      item.project_id === projectId && item.namespace === namespace;
-                                    const itemKey = workspaceKey(item.project_id, item.namespace);
-                                    const deleting = deletingWorkspaceKey === itemKey;
-                                    return (
-                                      <Card
-                                        key={itemKey}
-                                        variant="outlined"
-                                        sx={{
-                                          cursor: "pointer",
-                                          borderColor: selected
-                                            ? "rgba(0, 224, 255, 0.45)"
-                                            : "rgba(0, 198, 184, 0.10)",
-                                        }}
-                                        onClick={() => void handleWorkspaceSelect(item.project_id, item.namespace)}
-                                      >
-                                        <CardContent sx={{ "&:last-child": { pb: 2 } }}>
-                                          <Stack spacing={1.5}>
-                                            <Stack
-                                              direction="row"
-                                              alignItems="flex-start"
-                                              justifyContent="space-between"
-                                              spacing={1}
-                                            >
-                                              <Stack spacing={1}>
-                                                <Typography variant="subtitle2">{item.project_id}</Typography>
-                                                <Chip
-                                                  label={item.namespace}
-                                                  size="small"
-                                                  color={selected ? "primary" : "default"}
-                                                  variant="outlined"
-                                                  sx={{ width: "fit-content" }}
-                                                />
-                                              </Stack>
-                                              <Stack direction="row" spacing={0.5}>
-                                                <IconButton
-                                                  size="small"
-                                                  color="error"
-                                                  aria-label={t("common.delete")}
-                                                  disabled={deleting}
-                                                  onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    setDeleteDialogWorkspace(item);
-                                                  }}
-                                                >
-                                                  <DeleteOutline fontSize="small" />
-                                                </IconButton>
-                                              </Stack>
-                                            </Stack>
-                                          </Stack>
-                                        </CardContent>
-                                      </Card>
-                                    );
-                                  })}
-                                </Stack>
-                              )}
-                            </Stack>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                      <Grid item xs={12} md={8}>
-                        <Stack spacing={2}>
-                          <Card variant="outlined">
-                            <CardContent>
-                              <Stack spacing={2}>
-                                <div>
-                                  <Typography variant="subtitle1">{t("rules.workspace_editor")}</Typography>
-                                  <Typography variant="body2" color="text.secondary">
-                                    {t("rules.workspace_editor_desc")}
-                                  </Typography>
-                                </div>
-                                <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                                  <TextField
-                                    fullWidth
-                                    label={t("rules.project_id")}
-                                    value={projectId}
-                                    onChange={(event) => setProjectId(event.target.value)}
-                                    placeholder="ex: synapra-app"
-                                  />
-                                  <TextField
-                                    fullWidth
-                                    label={t("rules.namespace")}
-                                    value={namespace}
-                                    onChange={(event) => setNamespace(event.target.value)}
-                                    placeholder="ex: workspace"
-                                  />
-                                </Stack>
-                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                                  <Button
-                                    variant="outlined"
-                                    size="small"
-                                    onClick={handleLoadWorkspaceRules}
-                                    disabled={loadingWorkspace}
-                                  >
-                                    {loadingWorkspace ? t("rules.loading_workspace") : t("rules.load_workspace")}
-                                  </Button>
-                                  <Button
-                                    variant="contained"
-                                    size="small"
-                                    startIcon={<SaveIcon />}
-                                    onClick={handleSaveWorkspaceRules}
-                                    disabled={savingWorkspace}
-                                  >
-                                    {savingWorkspace ? t("rules.saving_workspace") : t("rules.save_workspace")}
-                                  </Button>
-                                </Stack>
-                              </Stack>
-                            </CardContent>
-                          </Card>
-                          <TextField
-                            multiline
-                            minRows={12}
-                            fullWidth
-                            value={workspaceRules}
-                            onChange={(event) => setWorkspaceRules(event.target.value)}
-                            placeholder={t("rules.workspace_placeholder")}
-                          />
-                        </Stack>
-                      </Grid>
-                    </Grid>
-                  </Stack>
-                )}
+      <Card variant="outlined">
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => setActiveTab(v)}
+          textColor="inherit"
+          indicatorColor="primary"
+          sx={{
+            "& .MuiTab-root": {
+              alignItems: "flex-start",
+              textTransform: "none",
+              minHeight: 56,
+            },
+          }}
+        >
+          <Tab value="organization" icon={<RuleIcon />} iconPosition="start" label={t("rules.organization_tab")} />
+          <Tab value="projects" icon={<ProjectIcon />} iconPosition="start" label={t("rules.projects_tab", { count: projectList.length })} />
+          <Tab value="namespaces" icon={<FolderIcon />} iconPosition="start" label={t("rules.namespaces_tab", { count: namespaceList.length })} />
+          <Tab value="repositories" icon={<SourceIcon />} iconPosition="start" label={t("rules.repositories_tab", { count: repositoryList.length })} />
+        </Tabs>
+
+        <Box sx={{ p: 3 }}>
+          {activeTab === "organization" && (
+            <Stack spacing={2}>
+              <Stack direction="row" alignItems="flex-start" spacing={2}>
+                <Box>
+                  <Typography variant="h6">{t("rules.organization_title")}</Typography>
+                  <Typography color="text.secondary">{t("rules.organization_desc")}</Typography>
+                </Box>
+                <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
+                  <Tooltip title={t("common.reload")}>
+                    <IconButton onClick={() => currentOrganizationId && void loadOrganizationRules(currentOrganizationId)} disabled={loading}>
+                      <RefreshIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Stack>
+              {renderRulesEditor(
+                organizationRules,
+                setOrganizationRules,
+                t("rules.organization_placeholder"),
+                handleSaveOrganizationRules,
+                saving,
+                false
+              )}
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSaveOrganizationRules} disabled={saving}>
+                  {saving ? t("rules.saving") : t("rules.organization_save")}
+                </Button>
               </Box>
-            </Card>
-          </Stack>
-        )}
-        <Dialog
-        open={Boolean(deleteDialogWorkspace)}
-        onClose={() => !deletingWorkspaceKey && setDeleteDialogWorkspace(null)}
-        fullWidth
-        maxWidth="xs"
-      >
-        <DialogTitle>{t("rules.delete_workspace")}</DialogTitle>
+            </Stack>
+          )}
+
+          {activeTab === "projects" && (
+            <Stack spacing={3}>
+              <Stack direction="row" alignItems="flex-start" spacing={2}>
+                <Box>
+                  <Typography variant="h6">{t("rules.projects_title")}</Typography>
+                  <Typography color="text.secondary">{t("rules.projects_desc")}</Typography>
+                </Box>
+                <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
+                  <Tooltip title={t("common.reload")}>
+                    <IconButton onClick={() => currentOrganizationId && void loadProjectList(currentOrganizationId)} disabled={loading}>
+                      <RefreshIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Stack>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={4}>
+                  <Card variant="outlined" sx={{ height: "100%" }}>
+                    <CardContent>
+                      <Stack spacing={2}>
+                        <Box>
+                          <Typography variant="subtitle1">{t("rules.project_list")}</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {t("rules.registered_count", { count: projectList.length })}
+                          </Typography>
+                        </Box>
+                        <Divider />
+                        {renderItemList(
+                          projectList,
+                          selectedProjectUuid,
+                          (p) => p.project_uuid,
+                          (p) => p.project_id,
+                          (p) => p.name || p.project_id,
+                          handleProjectSelect,
+                          (uuid) => {
+                            const item = projectList.find((p) => p.project_uuid === uuid);
+                            if (item) setDeleteDialogProject(item);
+                          },
+                          deletingKey
+                        )}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} md={8}>
+                  <Stack spacing={2}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Stack spacing={2}>
+                          <Typography variant="subtitle1">{t("rules.editor_title")}</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {t("rules.editor_desc")}
+                          </Typography>
+                          <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSaveProjectRules} disabled={saving || !selectedProjectUuid}>
+                            {saving ? t("rules.saving") : t("rules.save_project")}
+                          </Button>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                    {renderRulesEditor(
+                      projectRules,
+                      setProjectRules,
+                      t("rules.project_placeholder"),
+                      handleSaveProjectRules,
+                      saving,
+                      loadingRules
+                    )}
+                  </Stack>
+                </Grid>
+              </Grid>
+            </Stack>
+          )}
+
+          {activeTab === "namespaces" && (
+            <Stack spacing={3}>
+              <Stack direction="row" alignItems="flex-start" spacing={2}>
+                <Box>
+                  <Typography variant="h6">{t("rules.namespaces_title")}</Typography>
+                  <Typography color="text.secondary">{t("rules.namespaces_desc")}</Typography>
+                </Box>
+                <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
+                  <Tooltip title={t("common.reload")}>
+                    <IconButton onClick={() => currentOrganizationId && void loadNamespaceList(currentOrganizationId)} disabled={loading}>
+                      <RefreshIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Stack>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={4}>
+                  <Card variant="outlined" sx={{ height: "100%" }}>
+                    <CardContent>
+                      <Stack spacing={2}>
+                        <Box>
+                          <Typography variant="subtitle1">{t("rules.namespace_list")}</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {t("rules.registered_count", { count: namespaceList.length })}
+                          </Typography>
+                        </Box>
+                        <Divider />
+                        {renderItemList(
+                          namespaceList,
+                          selectedNamespaceUuid,
+                          (n) => n.namespace_uuid,
+                          (n) => n.namespace,
+                          (n) => n.project_id,
+                          handleNamespaceSelect,
+                          (uuid) => {
+                            const item = namespaceList.find((n) => n.namespace_uuid === uuid);
+                            if (item) setDeleteDialogNamespace(item);
+                          },
+                          deletingKey
+                        )}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} md={8}>
+                  <Stack spacing={2}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Stack spacing={2}>
+                          <Typography variant="subtitle1">{t("rules.editor_title")}</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {t("rules.editor_desc")}
+                          </Typography>
+                          <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSaveNamespaceRules} disabled={saving || !selectedNamespaceUuid}>
+                            {saving ? t("rules.saving") : t("rules.save_namespace")}
+                          </Button>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                    {renderRulesEditor(
+                      namespaceRules,
+                      setNamespaceRules,
+                      t("rules.namespace_placeholder"),
+                      handleSaveNamespaceRules,
+                      saving,
+                      loadingRules
+                    )}
+                  </Stack>
+                </Grid>
+              </Grid>
+            </Stack>
+          )}
+
+          {activeTab === "repositories" && (
+            <Stack spacing={3}>
+              <Stack direction="row" alignItems="flex-start" spacing={2}>
+                <Box>
+                  <Typography variant="h6">{t("rules.repositories_title")}</Typography>
+                  <Typography color="text.secondary">{t("rules.repositories_desc")}</Typography>
+                </Box>
+                <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
+                  <Tooltip title={t("common.reload")}>
+                    <IconButton onClick={() => currentOrganizationId && void loadRepositoryList(currentOrganizationId)} disabled={loading}>
+                      <RefreshIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Stack>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={4}>
+                  <Card variant="outlined" sx={{ height: "100%" }}>
+                    <CardContent>
+                      <Stack spacing={2}>
+                        <Box>
+                          <Typography variant="subtitle1">{t("rules.repository_list")}</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {t("rules.registered_count", { count: repositoryList.length })}
+                          </Typography>
+                        </Box>
+                        <Divider />
+                        {renderItemList(
+                          repositoryList,
+                          selectedRepositoryUuid,
+                          (r) => r.repository_uuid,
+                          (r) => r.name,
+                          (r) => r.repository_id,
+                          handleRepositorySelect,
+                          (uuid) => {
+                            const item = repositoryList.find((r) => r.repository_uuid === uuid);
+                            if (item) setDeleteDialogRepository(item);
+                          },
+                          deletingKey
+                        )}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} md={8}>
+                  <Stack spacing={2}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Stack spacing={2}>
+                          <Typography variant="subtitle1">{t("rules.editor_title")}</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {t("rules.editor_desc")}
+                          </Typography>
+                          <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSaveRepositoryRules} disabled={saving || !selectedRepositoryUuid}>
+                            {saving ? t("rules.saving") : t("rules.save_repository")}
+                          </Button>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                    {renderRulesEditor(
+                      repositoryRules,
+                      setRepositoryRules,
+                      t("rules.repository_placeholder"),
+                      handleSaveRepositoryRules,
+                      saving,
+                      loadingRules
+                    )}
+                  </Stack>
+                </Grid>
+              </Grid>
+            </Stack>
+          )}
+        </Box>
+      </Card>
+
+      <Dialog open={Boolean(deleteDialogProject)} onClose={() => !deletingKey && setDeleteDialogProject(null)} fullWidth maxWidth="xs">
+        <DialogTitle>{t("rules.delete_project")}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            {t("rules.delete_confirm", {
-              workspace: deleteDialogWorkspace
-                ? `${deleteDialogWorkspace.project_id}/${deleteDialogWorkspace.namespace}`
-                : "",
-            })}
+            {deleteDialogProject && t("rules.delete_confirm", { workspace: deleteDialogProject.project_id })}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button
-            onClick={() => setDeleteDialogWorkspace(null)}
-            disabled={Boolean(deletingWorkspaceKey)}
-          >
-            {t("common.cancel")}
-          </Button>
+          <Button onClick={() => setDeleteDialogProject(null)} disabled={Boolean(deletingKey)}>{t("common.cancel")}</Button>
           <Button
             color="error"
             variant="contained"
-            disabled={!deleteDialogWorkspace || Boolean(deletingWorkspaceKey)}
+            disabled={!deleteDialogProject || Boolean(deletingKey)}
             onClick={() => {
-              if (!deleteDialogWorkspace) {
-                return;
-              }
-              void handleDeleteWorkspace(
-                deleteDialogWorkspace.project_id,
-                deleteDialogWorkspace.namespace
-              ).finally(() => setDeleteDialogWorkspace(null));
+              if (!deleteDialogProject) return;
+              void handleDeleteProjectRules(deleteDialogProject.project_uuid).finally(() => setDeleteDialogProject(null));
+            }}
+          >
+            {t("common.delete")}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={Boolean(deleteDialogNamespace)} onClose={() => !deletingKey && setDeleteDialogNamespace(null)} fullWidth maxWidth="xs">
+        <DialogTitle>{t("rules.delete_namespace")}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {deleteDialogNamespace && t("rules.delete_confirm", { workspace: `${deleteDialogNamespace.project_id}/${deleteDialogNamespace.namespace}` })}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogNamespace(null)} disabled={Boolean(deletingKey)}>{t("common.cancel")}</Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={!deleteDialogNamespace || Boolean(deletingKey)}
+            onClick={() => {
+              if (!deleteDialogNamespace) return;
+              void handleDeleteNamespaceRules(deleteDialogNamespace.namespace_uuid).finally(() => setDeleteDialogNamespace(null));
+            }}
+          >
+            {t("common.delete")}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={Boolean(deleteDialogRepository)} onClose={() => !deletingKey && setDeleteDialogRepository(null)} fullWidth maxWidth="xs">
+        <DialogTitle>{t("rules.delete_repository")}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {deleteDialogRepository && t("rules.delete_confirm", { workspace: deleteDialogRepository.name })}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogRepository(null)} disabled={Boolean(deletingKey)}>{t("common.cancel")}</Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={!deleteDialogRepository || Boolean(deletingKey)}
+            onClick={() => {
+              if (!deleteDialogRepository) return;
+              void handleDeleteRepositoryRules(deleteDialogRepository.repository_uuid).finally(() => setDeleteDialogRepository(null));
             }}
           >
             {t("common.delete")}

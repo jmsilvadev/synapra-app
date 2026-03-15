@@ -13,8 +13,19 @@ import type {
   OrganizationSettings,
   Subscription,
   Usage,
-  WorkspaceRuleSummary,
-  WorkspaceRules,
+  Project,
+  CreateProjectRequest,
+  UpdateProjectRequest,
+  Namespace,
+  CreateNamespaceRequest,
+  Repository,
+  CreateRepositoryRequest,
+  ProjectRules,
+  ProjectRuleSummary,
+  NamespaceRules,
+  NamespaceRuleSummary,
+  RepositoryRules,
+  RepositoryRuleSummary,
 } from "../types/admin";
 
 export type DashboardResponse = {
@@ -77,40 +88,6 @@ export async function updateOrganizationRules(clientId: string, rulesMarkdown: s
     { rules_markdown: rulesMarkdown }
   );
   return response.data;
-}
-
-export async function getWorkspaceRules(clientId: string, projectId: string, namespace: string) {
-  const response = await apiClient.get<WorkspaceRules>(
-    `/v1/console/clients/${clientId}/rules/workspace`,
-    {
-      params: { project_id: projectId, namespace },
-    }
-  );
-  return response.data;
-}
-
-export async function listWorkspaceRules(clientId: string) {
-  const response = await apiClient.get<{ workspaces: WorkspaceRuleSummary[] }>(
-    `/v1/console/clients/${clientId}/rules/workspaces`
-  );
-  return asArray(response.data?.workspaces);
-}
-
-export async function updateWorkspaceRules(
-  clientId: string,
-  payload: { project_id: string; namespace: string; rules_markdown: string }
-) {
-  const response = await apiClient.put<WorkspaceRules>(
-    `/v1/console/clients/${clientId}/rules/workspace`,
-    payload
-  );
-  return response.data;
-}
-
-export async function deleteWorkspaceRules(clientId: string, projectId: string, namespace: string) {
-  await apiClient.delete(`/v1/console/clients/${clientId}/rules/workspace`, {
-    params: { project_id: projectId, namespace },
-  });
 }
 
 export async function getClientApiKeys(clientId: string) {
@@ -205,4 +182,160 @@ export async function getInvoices(clientId: string) {
     `/v1/console/clients/${clientId}/billing/invoices`
   );
   return asArray(response.data?.invoices);
+}
+
+export async function getProjects(clientId: string) {
+  const response = await apiClient.get<{ projects: Project[] }>(
+    `/v1/console/clients/${clientId}/projects`
+  );
+  return asArray(response.data?.projects);
+}
+
+export async function createProject(clientId: string, payload: CreateProjectRequest) {
+  const response = await apiClient.post<Project>(
+    `/v1/console/clients/${clientId}/projects`,
+    payload
+  );
+  return response.data;
+}
+
+export async function getProject(clientId: string, projectId: string) {
+  const response = await apiClient.get<Project>(
+    `/v1/console/clients/${clientId}/projects/${projectId}`
+  );
+  return response.data;
+}
+
+export async function updateProject(clientId: string, projectId: string, payload: UpdateProjectRequest) {
+  const response = await apiClient.put<Project>(
+    `/v1/console/clients/${clientId}/projects/${projectId}`,
+    payload
+  );
+  return response.data;
+}
+
+export async function deleteProject(clientId: string, projectId: string) {
+  await apiClient.delete(`/v1/console/clients/${clientId}/projects/${projectId}`);
+}
+
+export async function getNamespaces(clientId: string, projectId: string) {
+  const response = await apiClient.get<{ namespaces: Namespace[] }>(
+    `/v1/console/clients/${clientId}/namespaces`,
+    { params: { project_id: projectId } }
+  );
+  return asArray(response.data?.namespaces);
+}
+
+export async function createNamespace(clientId: string, payload: CreateNamespaceRequest) {
+  const response = await apiClient.post<Namespace>(
+    `/v1/console/clients/${clientId}/namespaces`,
+    payload
+  );
+  return response.data;
+}
+
+export async function getRepositories(clientId: string, projectId?: string) {
+  const params = projectId ? { project_id: projectId } : {};
+  const response = await apiClient.get<{ repositories: Repository[] }>(
+    `/v1/console/clients/${clientId}/repositories`,
+    { params }
+  );
+  return asArray(response.data?.repositories);
+}
+
+export async function createRepository(clientId: string, payload: CreateRepositoryRequest) {
+  const response = await apiClient.post<Repository>(
+    `/v1/console/clients/${clientId}/repositories`,
+    payload
+  );
+  return response.data;
+}
+
+export async function getRepository(clientId: string, repositoryId: string) {
+  const response = await apiClient.get<Repository>(
+    `/v1/console/clients/${clientId}/repositories/${repositoryId}`
+  );
+  return response.data;
+}
+
+export async function deleteRepository(clientId: string, repositoryId: string) {
+  await apiClient.delete(`/v1/console/clients/${clientId}/repositories/${repositoryId}`);
+}
+
+export async function getProjectRules(clientId: string, projectUuid: string) {
+  const response = await apiClient.get<ProjectRules>(
+    `/v1/console/clients/${clientId}/rules/projects/${projectUuid}`
+  );
+  return response.data;
+}
+
+export async function listProjectRules(clientId: string) {
+  const response = await apiClient.get<{ projects: ProjectRuleSummary[] }>(
+    `/v1/console/clients/${clientId}/rules/projects`
+  );
+  return asArray(response.data?.projects);
+}
+
+export async function updateProjectRules(clientId: string, projectUuid: string, rulesMarkdown: string) {
+  const response = await apiClient.put<ProjectRules>(
+    `/v1/console/clients/${clientId}/rules/projects/${projectUuid}`,
+    { rules_markdown: rulesMarkdown }
+  );
+  return response.data;
+}
+
+export async function deleteProjectRules(clientId: string, projectUuid: string) {
+  await apiClient.delete(`/v1/console/clients/${clientId}/rules/projects/${projectUuid}`);
+}
+
+export async function getNamespaceRules(clientId: string, namespaceUuid: string) {
+  const response = await apiClient.get<NamespaceRules>(
+    `/v1/console/clients/${clientId}/rules/namespaces/${namespaceUuid}`
+  );
+  return response.data;
+}
+
+export async function listNamespaceRules(clientId: string) {
+  const response = await apiClient.get<{ namespaces: NamespaceRuleSummary[] }>(
+    `/v1/console/clients/${clientId}/rules/namespaces`
+  );
+  return asArray(response.data?.namespaces);
+}
+
+export async function updateNamespaceRules(clientId: string, namespaceUuid: string, rulesMarkdown: string) {
+  const response = await apiClient.put<NamespaceRules>(
+    `/v1/console/clients/${clientId}/rules/namespaces/${namespaceUuid}`,
+    { rules_markdown: rulesMarkdown }
+  );
+  return response.data;
+}
+
+export async function deleteNamespaceRules(clientId: string, namespaceUuid: string) {
+  await apiClient.delete(`/v1/console/clients/${clientId}/rules/namespaces/${namespaceUuid}`);
+}
+
+export async function getRepositoryRules(clientId: string, repositoryUuid: string) {
+  const response = await apiClient.get<RepositoryRules>(
+    `/v1/console/clients/${clientId}/rules/repositories/${repositoryUuid}`
+  );
+  return response.data;
+}
+
+export async function listRepositoryRules(clientId: string) {
+  const response = await apiClient.get<{ repositories: RepositoryRuleSummary[] }>(
+    `/v1/console/clients/${clientId}/rules/repositories`
+  );
+  return asArray(response.data?.repositories);
+}
+
+export async function updateRepositoryRules(clientId: string, repositoryUuid: string, rulesMarkdown: string) {
+  const response = await apiClient.put<RepositoryRules>(
+    `/v1/console/clients/${clientId}/rules/repositories/${repositoryUuid}`,
+    { rules_markdown: rulesMarkdown }
+  );
+  return response.data;
+}
+
+export async function deleteRepositoryRules(clientId: string, repositoryUuid: string) {
+  await apiClient.delete(`/v1/console/clients/${clientId}/rules/repositories/${repositoryUuid}`);
 }

@@ -26,6 +26,13 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
 } from "@mui/material";
 import {
   GitHub as GitHubIcon,
@@ -36,10 +43,14 @@ import {
   Folder as FolderIcon,
   Public as PublicIcon,
   Lock as LockIcon,
+  Add as AddIcon,
+  Refresh as RefreshIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
 import { apiClient, apiBaseURL, extractErrorMessage } from "../services/apiClient";
+import { getProjects, getRepositories, createRepository, deleteRepository } from "../services/adminService";
+import type { Project, Repository } from "../types/admin";
 
 interface GitHubIntegration {
   connected: boolean;
@@ -56,33 +67,22 @@ interface GitHubRepository {
   html_url: string;
 }
 
-interface SyncedRepository {
-  id: string;
-  github_repo_id: number;
-  repo_name: string;
-  project_id: string;
-  namespace: string;
-  branch: string;
-  status: string;
-  created_at: string;
-}
-
 const RepositoriesPage: React.FC = () => {
   const { currentOrganizationId } = useAuth();
   const { t } = useI18n();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [repositories, setRepositories] = useState<Repository[]>([]);
   const [integration, setIntegration] = useState<GitHubIntegration | null>(null);
-  const [repositories, setRepositories] = useState<GitHubRepository[]>([]);
-  const [syncedRepos, setSyncedRepos] = useState<SyncedRepository[]>([]);
+  const [githubRepos, setGithubRepos] = useState<GitHubRepository[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [openSyncDialog, setOpenSyncDialog] = useState(false);
-  const [selectedRepo, setSelectedRepo] = useState<GitHubRepository | null>(null);
+  const [selectedGithubRepo, setSelectedGithubRepo] = useState<GitHubRepository | null>(null);
   const [syncForm, setSyncForm] = useState({
-    project_id: "github",
-    namespace: "",
-    branch: "main",
+    project_id: "",
+    default_branch: "main",
   });
 
   useEffect(() => {
@@ -92,23 +92,19 @@ const RepositoriesPage: React.FC = () => {
         return;
       }
       try {
-        const [integrationRes, syncedRes] = await Promise.all([
+        const [projectsData, reposData, integrationRes] = await Promise.all([
+          getProjects(currentOrganizationId).catch(() => []),
+          getRepositories(currentOrganizationId).catch(() => []),
           apiClient.get(`/v1/console/clients/${currentOrganizationId}/github`)
             .catch(() => ({ data: { connected: false } })),
-          apiClient.get(`/v1/console/clients/${currentOrganizationId}/github/synced`)
-            .catch(() => ({ data: { repositories: [] } })),
         ]);
+        setProjects(projectsData);
+        setRepositories(reposData);
+        setIntegration(integrationRes.data);
 
-        const integrationData = integrationRes.data;
-        setIntegration(integrationData);
-
-        const syncedData = syncedRes.data;
-        setSyncedRepos(syncedData.repositories || []);
-
-        if (integrationData.connected) {
+        if (integrationRes.data.connected) {
           const reposRes = await apiClient.get(`/v1/console/clients/${currentOrganizationId}/github/repositories`);
-          const reposData = reposRes.data;
-          setRepositories(reposData.repositories || []);
+          setGithubRepos(reposRes.data.repositories || []);
         }
       } catch (err) {
         setError(extractErrorMessage(err, t("repositories.load_error")));
@@ -130,7 +126,7 @@ const RepositoriesPage: React.FC = () => {
     try {
       await apiClient.delete(`/v1/console/clients/${currentOrganizationId}/github`);
       setIntegration({ connected: false });
-      setRepositories([]);
+      setGithubRepos([]);
       setSuccess(t("repositories.disconnected"));
     } catch (err) {
       setError(extractErrorMessage(err, t("repositories.disconnect_error")));
@@ -140,33 +136,36 @@ const RepositoriesPage: React.FC = () => {
   };
 
   const handleSyncClick = (repo: GitHubRepository) => {
-    setSelectedRepo(repo);
+    if (projects.length === 0) {
+      setError(t("repositories.no_projects"));
+      return;
+    }
+    setSelectedGithubRepo(repo);
     setSyncForm({
-      project_id: "github",
-      namespace: repo.name,
-      branch: "main",
+      project_id: projects[0].id,
+      default_branch: repo.default_branch || "main",
     });
     setOpenSyncDialog(true);
   };
 
   const handleSync = async () => {
-    if (!currentOrganizationId || !selectedRepo) return;
+    if (!currentOrganizationId || !selectedGithubRepo) return;
     setSyncing(true);
     setError(null);
     try {
-      const res = await apiClient.post(`/v1/console/clients/${currentOrganizationId}/github/repositories`, {
-        repo_id: selectedRepo.id,
-        repo_name: selectedRepo.full_name,
+      await createRepository(currentOrganizationId, {
         project_id: syncForm.project_id,
-        namespace: syncForm.namespace,
-        branch: syncForm.branch,
+        github_repo_id: selectedGithubRepo.id,
+        name: selectedGithubRepo.name,
+        full_name: selectedGithubRepo.full_name,
+        html_url: selectedGithubRepo.html_url,
+        default_branch: syncForm.default_branch,
+        is_private: selectedGithubRepo.private,
       });
-      setSuccess(t("repositories.sync_success", { namespace: res.data.namespace }));
+      setSuccess(t("repositories.sync_success", { name: selectedGithubRepo.full_name }));
       setOpenSyncDialog(false);
-      
-      const syncedRes = await apiClient.get(`/v1/console/clients/${currentOrganizationId}/github/synced`);
-      const syncedData = syncedRes.data;
-      setSyncedRepos(syncedData.repositories || []);
+      const reposData = await getRepositories(currentOrganizationId);
+      setRepositories(reposData);
     } catch (err) {
       setError(extractErrorMessage(err, t("repositories.sync_error")));
     } finally {
@@ -174,18 +173,30 @@ const RepositoriesPage: React.FC = () => {
     }
   };
 
-  const handleRemoveSync = async (repoId: string) => {
+  const handleRemoveRepository = async (repoId: string) => {
     if (!currentOrganizationId) return;
     try {
-      await apiClient.delete(`/v1/console/clients/${currentOrganizationId}/github/repositories/${repoId}`);
-      setSyncedRepos(syncedRepos.filter((r) => r.id !== repoId));
+      await deleteRepository(currentOrganizationId, repoId);
+      setRepositories(repositories.filter((r) => r.id !== repoId));
       setSuccess(t("repositories.removed"));
     } catch (err) {
       setError(extractErrorMessage(err, t("repositories.remove_error")));
     }
   };
 
-  const isRepoSynced = (repoId: number) => syncedRepos.some((r) => r.github_repo_id === repoId);
+  const getProjectName = (projectId: string) => {
+    const project = projects.find((p) => p.id === projectId);
+    return project ? `${project.name} (${project.slug})` : projectId;
+  };
+
+  const isRepoSynced = (repoId: number) => repositories.some((r) => r.github_repo_id === repoId);
+
+  const repositoriesByProject = repositories.reduce((acc, repo) => {
+    const key = repo.project_id;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(repo);
+    return acc;
+  }, {} as Record<string, Repository[]>);
 
   if (loading) {
     return (
@@ -236,44 +247,69 @@ const RepositoriesPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      <Typography variant="h5" sx={{ mb: 2 }}>{t("repositories.synced")}</Typography>
+      
+      {repositories.length === 0 ? (
+        <Alert severity="info" sx={{ mb: 3 }}>{t("repositories.no_synced")}</Alert>
+      ) : (
+        Object.entries(repositoriesByProject).map(([projectId, repos]) => (
+          <Card key={projectId} variant="outlined" sx={{ mb: 2 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                {getProjectName(projectId)}
+              </Typography>
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>{t("repositories.table.name")}</TableCell>
+                      <TableCell>{t("repositories.table.branch")}</TableCell>
+                      <TableCell>{t("repositories.table.status")}</TableCell>
+                      <TableCell align="right">{t("repositories.table.actions")}</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {repos.map((repo) => (
+                      <TableRow key={repo.id}>
+                        <TableCell>
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            {repo.is_private ? <LockIcon fontSize="small" /> : <PublicIcon fontSize="small" />}
+                            <Typography variant="body2">{repo.full_name}</Typography>
+                          </Stack>
+                        </TableCell>
+                        <TableCell>{repo.default_branch}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={repo.sync_status} 
+                            color={repo.sync_status === "synced" ? "success" : repo.sync_status === "error" ? "error" : "default"} 
+                            size="small" 
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Tooltip title={t("common.delete")}>
+                            <IconButton size="small" onClick={() => handleRemoveRepository(repo.id)}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </CardContent>
+          </Card>
+        ))
+      )}
+
       {integration?.connected && (
         <>
-          <Typography variant="h5" sx={{ mb: 2 }}>{t("repositories.synced")}</Typography>
-          {syncedRepos.length === 0 ? (
-            <Alert severity="info" sx={{ mb: 3 }}>{t("repositories.no_synced")}</Alert>
-          ) : (
-            <List sx={{ mb: 3 }}>
-              {syncedRepos.map((repo) => (
-                <ListItem key={repo.id} divider>
-                  <ListItemIcon>
-                    <FolderIcon />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={repo.repo_name}
-                    secondary={`${repo.project_id}/${repo.namespace} (${repo.branch})`}
-                  />
-                  <Chip 
-                    label={repo.status} 
-                    color={repo.status === "synced" ? "success" : "default"} 
-                    size="small" 
-                    sx={{ mr: 1 }}
-                  />
-                  <Tooltip title={t("common.delete")}>
-                    <IconButton edge="end" onClick={() => handleRemoveSync(repo.id)}>
-                      <DeleteIcon />
-                    </IconButton>
-                  </Tooltip>
-                </ListItem>
-              ))}
-            </List>
-          )}
-
           <Typography variant="h5" sx={{ mb: 2 }}>{t("repositories.available")}</Typography>
-          {repositories.length === 0 ? (
-            <Alert severity="info">{t("repositories.no_repositories")}</Alert>
+          {projects.length === 0 ? (
+            <Alert severity="warning">{t("repositories.no_projects")}</Alert>
           ) : (
             <List>
-              {repositories.map((repo) => (
+              {githubRepos.map((repo) => (
                 <ListItem key={repo.id} divider>
                   <ListItemIcon>
                     {repo.private ? <LockIcon /> : <PublicIcon />}
@@ -304,23 +340,25 @@ const RepositoriesPage: React.FC = () => {
         <DialogTitle>{t("repositories.sync_dialog_title")}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              fullWidth
-              label={t("repositories.project_id")}
-              value={syncForm.project_id}
-              onChange={(e) => setSyncForm({ ...syncForm, project_id: e.target.value })}
-            />
-            <TextField
-              fullWidth
-              label={t("repositories.namespace")}
-              value={syncForm.namespace}
-              onChange={(e) => setSyncForm({ ...syncForm, namespace: e.target.value })}
-            />
+            <FormControl fullWidth>
+              <InputLabel>{t("repositories.project")}</InputLabel>
+              <Select
+                value={syncForm.project_id}
+                onChange={(e) => setSyncForm({ ...syncForm, project_id: e.target.value })}
+                label={t("repositories.project")}
+              >
+                {projects.map((p) => (
+                  <MenuItem key={p.id} value={p.id}>
+                    {p.name} ({p.slug})
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             <TextField
               fullWidth
               label={t("repositories.branch")}
-              value={syncForm.branch}
-              onChange={(e) => setSyncForm({ ...syncForm, branch: e.target.value })}
+              value={syncForm.default_branch}
+              onChange={(e) => setSyncForm({ ...syncForm, default_branch: e.target.value })}
             />
           </Stack>
         </DialogContent>
