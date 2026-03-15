@@ -28,11 +28,12 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Folder as FolderIcon,
+  Policy as PolicyIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
 import { extractErrorMessage } from "../services/apiClient";
-import { getProjects, createProject, deleteProject, getRepositories } from "../services/adminService";
+import { getProjects, createProject, deleteProject, getRepositories, getProjectRules, updateProjectRules } from "../services/adminService";
 import type { Project, Repository } from "../types/admin";
 
 const ProjectsPage: React.FC = () => {
@@ -48,6 +49,11 @@ const ProjectsPage: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const [rulesDialogProject, setRulesDialogProject] = useState<Project | null>(null);
+  const [rulesContent, setRulesContent] = useState("");
+  const [rulesLoading, setRulesLoading] = useState(false);
+  const [rulesSaving, setRulesSaving] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -108,6 +114,42 @@ const ProjectsPage: React.FC = () => {
     }
   };
 
+  const handleOpenRules = async (project: Project) => {
+    setRulesDialogProject(project);
+    setRulesLoading(true);
+    setRulesContent("");
+    setError(null);
+    try {
+      if (currentOrganizationId) {
+        const rules = await getProjectRules(currentOrganizationId, project.id);
+        setRulesContent(rules.rules_markdown || "");
+      }
+    } catch (err) {
+      setRulesContent("");
+    } finally {
+      setRulesLoading(false);
+    }
+  };
+
+  const handleSaveRules = async () => {
+    if (!currentOrganizationId || !rulesDialogProject) return;
+    if (!rulesContent.trim()) {
+      setError(t("rules.validation.project_empty"));
+      return;
+    }
+    setRulesSaving(true);
+    setError(null);
+    try {
+      await updateProjectRules(currentOrganizationId, rulesDialogProject.id, rulesContent);
+      setSuccess(t("rules.success.project_saved"));
+      setRulesDialogProject(null);
+    } catch (err) {
+      setError(extractErrorMessage(err, t("projects.rules_error")));
+    } finally {
+      setRulesSaving(false);
+    }
+  };
+
   const getRepoCount = (projectId: string) => 
     repositories.filter((r) => r.project_id === projectId).length;
 
@@ -161,7 +203,7 @@ const ProjectsPage: React.FC = () => {
                 <TableCell>{t("projects.slug")}</TableCell>
                 <TableCell>{t("projects.repositories")}</TableCell>
                 <TableCell>{t("projects.created_at")}</TableCell>
-                <TableCell align="right">{t("common.delete")}</TableCell>
+                <TableCell align="right">{t("projects.actions")}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -180,14 +222,24 @@ const ProjectsPage: React.FC = () => {
                     {new Date(project.created_at).toLocaleDateString()}
                   </TableCell>
                   <TableCell align="right">
-                    <Tooltip title={t("common.delete")}>
-                      <IconButton
-                        size="small"
-                        onClick={() => setDeleteProjectId(project.id)}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      <Tooltip title={t("projects.rules")}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleOpenRules(project)}
+                        >
+                          <PolicyIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={t("common.delete")}>
+                        <IconButton
+                          size="small"
+                          onClick={() => setDeleteProjectId(project.id)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
                   </TableCell>
                 </TableRow>
               ))}
@@ -242,6 +294,45 @@ const ProjectsPage: React.FC = () => {
           <Button onClick={() => setDeleteProjectId(null)}>{t("common.cancel")}</Button>
           <Button onClick={handleDelete} variant="contained" color="error" disabled={deleting}>
             {deleting ? t("common.delete") : t("common.delete")}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog 
+        open={!!rulesDialogProject} 
+        onClose={() => setRulesDialogProject(null)} 
+        fullWidth 
+        maxWidth="md"
+      >
+        <DialogTitle>{t("projects.rules_dialog_title", { name: rulesDialogProject?.name })}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {t("projects.rules_dialog_desc")}
+          </Typography>
+          {rulesLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <TextField
+              fullWidth
+              multiline
+              rows={12}
+              value={rulesContent}
+              onChange={(e) => setRulesContent(e.target.value)}
+              placeholder={t("rules.project_placeholder")}
+              sx={{ mt: 1 }}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRulesDialogProject(null)}>{t("common.cancel")}</Button>
+          <Button 
+            onClick={handleSaveRules} 
+            variant="contained" 
+            disabled={rulesSaving || rulesLoading || !rulesContent.trim()}
+          >
+            {rulesSaving ? t("rules.saving") : t("common.save")}
           </Button>
         </DialogActions>
       </Dialog>

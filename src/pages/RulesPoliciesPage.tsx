@@ -1,38 +1,42 @@
 import React, { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import {
-  Add as AddIcon,
-  DeleteOutline,
-  Refresh as RefreshIcon,
-  Rule as RuleIcon,
+  Business as OrganizationIcon,
   Folder as FolderIcon,
-  Save as SaveIcon,
-  Source as SourceIcon,
-  AccountTree as ProjectIcon,
+  Storage as NamespaceIcon,
+  Source as RepositoryIcon,
+  Policy as PolicyIcon,
+  Refresh as RefreshIcon,
+  Delete as DeleteIcon,
 } from "@mui/icons-material";
 import {
   Alert,
+  Box,
   Button,
   Card,
   CardContent,
-  Chip,
   CircularProgress,
   Container,
   Dialog,
   DialogActions,
   DialogContent,
-  DialogContentText,
   DialogTitle,
-  IconButton,
   Divider,
-  Grid,
+  IconButton,
+  MenuItem,
   Stack,
   Tab,
   Tabs,
   TextField,
-  Typography,
-  Box,
   Tooltip,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
 } from "@mui/material";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -61,31 +65,45 @@ function isNotFoundError(error: unknown) {
 
 type RulesTab = "organization" | "projects" | "namespaces" | "repositories";
 
+interface RuleItem {
+  uuid: string;
+  id: string;
+  name: string;
+  sublabel: string;
+}
+
 const RulesPoliciesPage: React.FC = () => {
   const { currentOrganizationId } = useAuth();
   const { t } = useI18n();
-  
+
   const [activeTab, setActiveTab] = useState<RulesTab>("organization");
-  
+
   const [organizationRules, setOrganizationRules] = useState("");
   const [projectList, setProjectList] = useState<ProjectRuleSummary[]>([]);
   const [namespaceList, setNamespaceList] = useState<NamespaceRuleSummary[]>([]);
   const [repositoryList, setRepositoryList] = useState<RepositoryRuleSummary[]>([]);
-  
+
   const [selectedProjectUuid, setSelectedProjectUuid] = useState("");
   const [selectedNamespaceUuid, setSelectedNamespaceUuid] = useState("");
   const [selectedRepositoryUuid, setSelectedRepositoryUuid] = useState("");
-  
+
   const [projectRules, setProjectRules] = useState("");
   const [namespaceRules, setNamespaceRules] = useState("");
   const [repositoryRules, setRepositoryRules] = useState("");
-  
+
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingRules, setLoadingRules] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
+
+  const [projectFilter, setProjectFilter] = useState("");
+
+  const [rulesDialogOpen, setRulesDialogOpen] = useState(false);
+  const [rulesDialogContent, setRulesDialogContent] = useState("");
+  const [rulesDialogTarget, setRulesDialogTarget] = useState<{ type: "project" | "namespace" | "repository"; uuid: string; name: string } | null>(null);
+
   const [deleteDialogProject, setDeleteDialogProject] = useState<ProjectRuleSummary | null>(null);
   const [deleteDialogNamespace, setDeleteDialogNamespace] = useState<NamespaceRuleSummary | null>(null);
   const [deleteDialogRepository, setDeleteDialogRepository] = useState<RepositoryRuleSummary | null>(null);
@@ -244,31 +262,67 @@ const RulesPoliciesPage: React.FC = () => {
     }
   };
 
-  const handleProjectSelect = async (projectUuid: string) => {
+  const handleOpenRulesDialog = async (type: "project" | "namespace" | "repository", uuid: string, name: string) => {
     if (!currentOrganizationId) return;
-    setSelectedProjectUuid(projectUuid);
-    setError(null);
-    setSuccess(null);
-    await loadProjectRulesContent(currentOrganizationId, projectUuid);
+    setRulesDialogTarget({ type, uuid, name });
+    setRulesDialogContent("");
+    setLoadingRules(true);
+    setRulesDialogOpen(true);
+    try {
+      let rules = "";
+      if (type === "project") {
+        const r = await getProjectRules(currentOrganizationId, uuid);
+        rules = r.rules_markdown || "";
+      } else if (type === "namespace") {
+        const r = await getNamespaceRules(currentOrganizationId, uuid);
+        rules = r.rules_markdown || "";
+      } else {
+        const r = await getRepositoryRules(currentOrganizationId, uuid);
+        rules = r.rules_markdown || "";
+      }
+      setRulesDialogContent(rules);
+    } catch (err) {
+      if (!isNotFoundError(err)) {
+        setError(extractErrorMessage(err, t("rules.load_error")));
+      }
+      setRulesDialogContent("");
+    } finally {
+      setLoadingRules(false);
+    }
   };
 
-  const handleSaveProjectRules = async () => {
-    if (!currentOrganizationId || !selectedProjectUuid) return;
-    if (!projectRules.trim()) {
-      setError(t("rules.validation.project_empty"));
-      setSuccess(null);
+  const handleSaveRulesDialog = async () => {
+    if (!currentOrganizationId || !rulesDialogTarget) return;
+    if (!rulesDialogContent.trim()) {
+      const validationKey = rulesDialogTarget.type === "project" 
+        ? "rules.validation.project_empty" 
+        : rulesDialogTarget.type === "namespace" 
+          ? "rules.validation.namespace_empty" 
+          : "rules.validation.repository_empty";
+      setError(t(validationKey));
       return;
     }
 
     setSaving(true);
     setError(null);
-    setSuccess(null);
     try {
-      await updateProjectRules(currentOrganizationId, selectedProjectUuid, projectRules);
-      await loadProjectList(currentOrganizationId);
-      setSuccess(t("rules.success.project_saved"));
+      if (rulesDialogTarget.type === "project") {
+        await updateProjectRules(currentOrganizationId, rulesDialogTarget.uuid, rulesDialogContent);
+        await loadProjectList(currentOrganizationId);
+        setSuccess(t("rules.success.project_saved"));
+      } else if (rulesDialogTarget.type === "namespace") {
+        await updateNamespaceRules(currentOrganizationId, rulesDialogTarget.uuid, rulesDialogContent);
+        await loadNamespaceList(currentOrganizationId);
+        setSuccess(t("rules.success.namespace_saved"));
+      } else {
+        await updateRepositoryRules(currentOrganizationId, rulesDialogTarget.uuid, rulesDialogContent);
+        await loadRepositoryList(currentOrganizationId);
+        setSuccess(t("rules.success.repository_saved"));
+      }
+      setRulesDialogOpen(false);
+      setRulesDialogTarget(null);
     } catch (err) {
-      setError(extractErrorMessage(err, t("rules.project_save")));
+      setError(extractErrorMessage(err, t("rules.load_error")));
     } finally {
       setSaving(false);
     }
@@ -300,36 +354,6 @@ const RulesPoliciesPage: React.FC = () => {
     }
   };
 
-  const handleNamespaceSelect = async (namespaceUuid: string) => {
-    if (!currentOrganizationId) return;
-    setSelectedNamespaceUuid(namespaceUuid);
-    setError(null);
-    setSuccess(null);
-    await loadNamespaceRulesContent(currentOrganizationId, namespaceUuid);
-  };
-
-  const handleSaveNamespaceRules = async () => {
-    if (!currentOrganizationId || !selectedNamespaceUuid) return;
-    if (!namespaceRules.trim()) {
-      setError(t("rules.validation.namespace_empty"));
-      setSuccess(null);
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-    setSuccess(null);
-    try {
-      await updateNamespaceRules(currentOrganizationId, selectedNamespaceUuid, namespaceRules);
-      await loadNamespaceList(currentOrganizationId);
-      setSuccess(t("rules.success.namespace_saved"));
-    } catch (err) {
-      setError(extractErrorMessage(err, t("rules.namespace_save")));
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleDeleteNamespaceRules = async (namespaceUuid: string) => {
     if (!currentOrganizationId) return;
     setDeletingKey(namespaceUuid);
@@ -353,36 +377,6 @@ const RulesPoliciesPage: React.FC = () => {
       setError(extractErrorMessage(err, t("rules.delete_namespace")));
     } finally {
       setDeletingKey(null);
-    }
-  };
-
-  const handleRepositorySelect = async (repositoryUuid: string) => {
-    if (!currentOrganizationId) return;
-    setSelectedRepositoryUuid(repositoryUuid);
-    setError(null);
-    setSuccess(null);
-    await loadRepositoryRulesContent(currentOrganizationId, repositoryUuid);
-  };
-
-  const handleSaveRepositoryRules = async () => {
-    if (!currentOrganizationId || !selectedRepositoryUuid) return;
-    if (!repositoryRules.trim()) {
-      setError(t("rules.validation.repository_empty"));
-      setSuccess(null);
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-    setSuccess(null);
-    try {
-      await updateRepositoryRules(currentOrganizationId, selectedRepositoryUuid, repositoryRules);
-      await loadRepositoryList(currentOrganizationId);
-      setSuccess(t("rules.success.repository_saved"));
-    } catch (err) {
-      setError(extractErrorMessage(err, t("rules.repository_save")));
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -412,89 +406,13 @@ const RulesPoliciesPage: React.FC = () => {
     }
   };
 
-  const renderRulesEditor = (
-    rulesContent: string,
-    setRulesContent: (v: string) => void,
-    placeholder: string,
-    onSave: () => Promise<void>,
-    saving: boolean,
-    loadingRulesContent: boolean
-  ) => (
-    <TextField
-      multiline
-      minRows={12}
-      fullWidth
-      value={rulesContent}
-      onChange={(e) => setRulesContent(e.target.value)}
-      placeholder={placeholder}
-      disabled={loadingRulesContent}
-    />
-  );
-
-  const renderItemList = <T extends { created_at?: string; updated_at?: string }>(
-    items: T[],
-    selectedKey: string,
-    getKey: (item: T) => string,
-    getLabel: (item: T) => string,
-    getSublabel: (item: T) => string,
-    onSelect: (key: string) => void,
-    onDelete: (key: string) => void,
-    deleting: string | null
-  ) => (
-    <Stack spacing={1}>
-      {items.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">
-          {t("rules.empty_list")}
-        </Typography>
-      ) : (
-        items.map((item) => {
-          const key = getKey(item);
-          const selected = key === selectedKey;
-          return (
-            <Card
-              key={key}
-              variant="outlined"
-              sx={{
-                cursor: "pointer",
-                borderColor: selected ? "rgba(0, 224, 255, 0.45)" : "rgba(0, 198, 184, 0.10)",
-              }}
-              onClick={() => void onSelect(key)}
-            >
-              <CardContent sx={{ "&:last-child": { pb: 2 } }}>
-                <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
-                  <Stack spacing={1}>
-                    <Typography variant="subtitle2">{getLabel(item)}</Typography>
-                    <Chip
-                      label={getSublabel(item)}
-                      size="small"
-                      color={selected ? "primary" : "default"}
-                      variant="outlined"
-                      sx={{ width: "fit-content" }}
-                    />
-                  </Stack>
-                  <IconButton
-                    size="small"
-                    color="error"
-                    disabled={deleting === key}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(key);
-                    }}
-                  >
-                    <DeleteOutline fontSize="small" />
-                  </IconButton>
-                </Stack>
-              </CardContent>
-            </Card>
-          );
-        })
-      )}
-    </Stack>
-  );
+  const filteredNamespaceList = projectFilter 
+    ? namespaceList.filter((n) => n.project_id === projectFilter)
+    : namespaceList;
 
   if (loading) {
     return (
-      <Container>
+      <Container sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
         <CircularProgress />
       </Container>
     );
@@ -527,44 +445,42 @@ const RulesPoliciesPage: React.FC = () => {
           indicatorColor="primary"
           sx={{
             "& .MuiTab-root": {
-              alignItems: "flex-start",
+              alignItems: "center",
               textTransform: "none",
               minHeight: 56,
             },
           }}
         >
-          <Tab value="organization" icon={<RuleIcon />} iconPosition="start" label={t("rules.organization_tab")} />
-          <Tab value="projects" icon={<ProjectIcon />} iconPosition="start" label={t("rules.projects_tab", { count: projectList.length })} />
-          <Tab value="namespaces" icon={<FolderIcon />} iconPosition="start" label={t("rules.namespaces_tab", { count: namespaceList.length })} />
-          <Tab value="repositories" icon={<SourceIcon />} iconPosition="start" label={t("rules.repositories_tab", { count: repositoryList.length })} />
+          <Tab value="organization" icon={<OrganizationIcon />} iconPosition="start" label={t("rules.organization_tab")} />
+          <Tab value="projects" icon={<FolderIcon />} iconPosition="start" label={t("rules.projects_tab", { count: projectList.length })} />
+          <Tab value="namespaces" icon={<NamespaceIcon />} iconPosition="start" label={t("rules.namespaces_tab", { count: namespaceList.length })} />
+          <Tab value="repositories" icon={<RepositoryIcon />} iconPosition="start" label={t("rules.repositories_tab", { count: repositoryList.length })} />
         </Tabs>
 
         <Box sx={{ p: 3 }}>
           {activeTab === "organization" && (
             <Stack spacing={2}>
               <Stack direction="row" alignItems="flex-start" spacing={2}>
-                <Box>
+                <Box sx={{ flex: 1 }}>
                   <Typography variant="h6">{t("rules.organization_title")}</Typography>
-                  <Typography color="text.secondary">{t("rules.organization_desc")}</Typography>
+                  <Typography color="text.secondary" variant="body2">{t("rules.organization_desc")}</Typography>
                 </Box>
-                <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
-                  <Tooltip title={t("common.reload")}>
-                    <IconButton onClick={() => currentOrganizationId && void loadOrganizationRules(currentOrganizationId)} disabled={loading}>
-                      <RefreshIcon />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
+                <Tooltip title={t("common.reload")}>
+                  <IconButton onClick={() => currentOrganizationId && void loadOrganizationRules(currentOrganizationId)} disabled={saving}>
+                    <RefreshIcon />
+                  </IconButton>
+                </Tooltip>
               </Stack>
-              {renderRulesEditor(
-                organizationRules,
-                setOrganizationRules,
-                t("rules.organization_placeholder"),
-                handleSaveOrganizationRules,
-                saving,
-                false
-              )}
+              <TextField
+                multiline
+                minRows={12}
+                fullWidth
+                value={organizationRules}
+                onChange={(e) => setOrganizationRules(e.target.value)}
+                placeholder={t("rules.organization_placeholder")}
+              />
               <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSaveOrganizationRules} disabled={saving}>
+                <Button variant="contained" onClick={handleSaveOrganizationRules} disabled={saving || !organizationRules.trim()}>
                   {saving ? t("rules.saving") : t("rules.organization_save")}
                 </Button>
               </Box>
@@ -572,232 +488,255 @@ const RulesPoliciesPage: React.FC = () => {
           )}
 
           {activeTab === "projects" && (
-            <Stack spacing={3}>
-              <Stack direction="row" alignItems="flex-start" spacing={2}>
+            <Stack spacing={2}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography variant="h6">{t("rules.projects_title")}</Typography>
-                  <Typography color="text.secondary">{t("rules.projects_desc")}</Typography>
+                  <Typography color="text.secondary" variant="body2">{t("rules.projects_desc")}</Typography>
                 </Box>
-                <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
-                  <Tooltip title={t("common.reload")}>
-                    <IconButton onClick={() => currentOrganizationId && void loadProjectList(currentOrganizationId)} disabled={loading}>
-                      <RefreshIcon />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
+                <Tooltip title={t("common.reload")}>
+                  <IconButton onClick={() => currentOrganizationId && void loadProjectList(currentOrganizationId)}>
+                    <RefreshIcon />
+                  </IconButton>
+                </Tooltip>
               </Stack>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={4}>
-                  <Card variant="outlined" sx={{ height: "100%" }}>
-                    <CardContent>
-                      <Stack spacing={2}>
-                        <Box>
-                          <Typography variant="subtitle1">{t("rules.project_list")}</Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {t("rules.registered_count", { count: projectList.length })}
-                          </Typography>
-                        </Box>
-                        <Divider />
-                        {renderItemList(
-                          projectList,
-                          selectedProjectUuid,
-                          (p) => p.project_uuid,
-                          (p) => p.project_id,
-                          (p) => p.name || p.project_id,
-                          handleProjectSelect,
-                          (uuid) => {
-                            const item = projectList.find((p) => p.project_uuid === uuid);
-                            if (item) setDeleteDialogProject(item);
-                          },
-                          deletingKey
-                        )}
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} md={8}>
-                  <Stack spacing={2}>
-                    <Card variant="outlined">
-                      <CardContent>
-                        <Stack spacing={2}>
-                          <Typography variant="subtitle1">{t("rules.editor_title")}</Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {t("rules.editor_desc")}
-                          </Typography>
-                          <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSaveProjectRules} disabled={saving || !selectedProjectUuid}>
-                            {saving ? t("rules.saving") : t("rules.save_project")}
-                          </Button>
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                    {renderRulesEditor(
-                      projectRules,
-                      setProjectRules,
-                      t("rules.project_placeholder"),
-                      handleSaveProjectRules,
-                      saving,
-                      loadingRules
-                    )}
-                  </Stack>
-                </Grid>
-              </Grid>
+
+              {projectList.length === 0 ? (
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="body2" color="text.secondary" textAlign="center">
+                      {t("rules.empty_list")}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              ) : (
+                <TableContainer component={Paper} variant="outlined">
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>{t("rules.project_list")}</TableCell>
+                        <TableCell align="right">{t("rules.project.actions")}</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {projectList.map((project) => (
+                        <TableRow key={project.project_uuid}>
+                          <TableCell>
+                            <Typography fontWeight="medium">{project.name || project.project_id}</Typography>
+                            <Typography variant="body2" color="text.secondary">{project.project_id}</Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Stack direction="row" spacing={1} justifyContent="flex-end">
+                              <Tooltip title={t("projects.rules")}>
+                                <IconButton size="small" onClick={() => handleOpenRulesDialog("project", project.project_uuid, project.name || project.project_id)}>
+                                  <PolicyIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title={t("common.delete")}>
+                                <IconButton size="small" onClick={() => setDeleteDialogProject(project)} disabled={deletingKey === project.project_uuid}>
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
             </Stack>
           )}
 
           {activeTab === "namespaces" && (
-            <Stack spacing={3}>
-              <Stack direction="row" alignItems="flex-start" spacing={2}>
+            <Stack spacing={2}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography variant="h6">{t("rules.namespaces_title")}</Typography>
-                  <Typography color="text.secondary">{t("rules.namespaces_desc")}</Typography>
+                  <Typography color="text.secondary" variant="body2">{t("rules.namespaces_desc")}</Typography>
                 </Box>
-                <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
-                  <Tooltip title={t("common.reload")}>
-                    <IconButton onClick={() => currentOrganizationId && void loadNamespaceList(currentOrganizationId)} disabled={loading}>
-                      <RefreshIcon />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
+                <Tooltip title={t("common.reload")}>
+                  <IconButton onClick={() => currentOrganizationId && void loadNamespaceList(currentOrganizationId)}>
+                    <RefreshIcon />
+                  </IconButton>
+                </Tooltip>
               </Stack>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={4}>
-                  <Card variant="outlined" sx={{ height: "100%" }}>
-                    <CardContent>
-                      <Stack spacing={2}>
-                        <Box>
-                          <Typography variant="subtitle1">{t("rules.namespace_list")}</Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {t("rules.registered_count", { count: namespaceList.length })}
-                          </Typography>
-                        </Box>
-                        <Divider />
-                        {renderItemList(
-                          namespaceList,
-                          selectedNamespaceUuid,
-                          (n) => n.namespace_uuid,
-                          (n) => n.namespace,
-                          (n) => n.project_id,
-                          handleNamespaceSelect,
-                          (uuid) => {
-                            const item = namespaceList.find((n) => n.namespace_uuid === uuid);
-                            if (item) setDeleteDialogNamespace(item);
-                          },
-                          deletingKey
-                        )}
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} md={8}>
-                  <Stack spacing={2}>
-                    <Card variant="outlined">
-                      <CardContent>
-                        <Stack spacing={2}>
-                          <Typography variant="subtitle1">{t("rules.editor_title")}</Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {t("rules.editor_desc")}
-                          </Typography>
-                          <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSaveNamespaceRules} disabled={saving || !selectedNamespaceUuid}>
-                            {saving ? t("rules.saving") : t("rules.save_namespace")}
-                          </Button>
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                    {renderRulesEditor(
-                      namespaceRules,
-                      setNamespaceRules,
-                      t("rules.namespace_placeholder"),
-                      handleSaveNamespaceRules,
-                      saving,
-                      loadingRules
-                    )}
-                  </Stack>
-                </Grid>
-              </Grid>
+
+              <TextField
+                select
+                label={t("rules.filter_by_project")}
+                value={projectFilter}
+                onChange={(e) => setProjectFilter(e.target.value)}
+                sx={{ minWidth: 250 }}
+              >
+                <MenuItem value="">{t("rules.all_projects")}</MenuItem>
+                {projectList.map((p) => (
+                  <MenuItem key={p.project_uuid} value={p.project_id}>{p.name || p.project_id}</MenuItem>
+                ))}
+              </TextField>
+
+              {filteredNamespaceList.length === 0 ? (
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="body2" color="text.secondary" textAlign="center">
+                      {t("rules.empty_list")}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              ) : (
+                <TableContainer component={Paper} variant="outlined">
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>{t("rules.namespace_list")}</TableCell>
+                        <TableCell>{t("rules.project_list")}</TableCell>
+                        <TableCell align="right">{t("rules.namespace.actions")}</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {filteredNamespaceList.map((namespace) => (
+                        <TableRow key={namespace.namespace_uuid}>
+                          <TableCell>
+                            <Typography fontWeight="medium">{namespace.namespace}</Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary">{namespace.project_id}</Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Stack direction="row" spacing={1} justifyContent="flex-end">
+                              <Tooltip title={t("namespaces.rules")}>
+                                <IconButton size="small" onClick={() => handleOpenRulesDialog("namespace", namespace.namespace_uuid, namespace.namespace)}>
+                                  <PolicyIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title={t("common.delete")}>
+                                <IconButton size="small" onClick={() => setDeleteDialogNamespace(namespace)} disabled={deletingKey === namespace.namespace_uuid}>
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
             </Stack>
           )}
 
           {activeTab === "repositories" && (
-            <Stack spacing={3}>
-              <Stack direction="row" alignItems="flex-start" spacing={2}>
+            <Stack spacing={2}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography variant="h6">{t("rules.repositories_title")}</Typography>
-                  <Typography color="text.secondary">{t("rules.repositories_desc")}</Typography>
+                  <Typography color="text.secondary" variant="body2">{t("rules.repositories_desc")}</Typography>
                 </Box>
-                <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
-                  <Tooltip title={t("common.reload")}>
-                    <IconButton onClick={() => currentOrganizationId && void loadRepositoryList(currentOrganizationId)} disabled={loading}>
-                      <RefreshIcon />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
+                <Tooltip title={t("common.reload")}>
+                  <IconButton onClick={() => currentOrganizationId && void loadRepositoryList(currentOrganizationId)}>
+                    <RefreshIcon />
+                  </IconButton>
+                </Tooltip>
               </Stack>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={4}>
-                  <Card variant="outlined" sx={{ height: "100%" }}>
-                    <CardContent>
-                      <Stack spacing={2}>
-                        <Box>
-                          <Typography variant="subtitle1">{t("rules.repository_list")}</Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {t("rules.registered_count", { count: repositoryList.length })}
-                          </Typography>
-                        </Box>
-                        <Divider />
-                        {renderItemList(
-                          repositoryList,
-                          selectedRepositoryUuid,
-                          (r) => r.repository_uuid,
-                          (r) => r.name,
-                          (r) => r.repository_id,
-                          handleRepositorySelect,
-                          (uuid) => {
-                            const item = repositoryList.find((r) => r.repository_uuid === uuid);
-                            if (item) setDeleteDialogRepository(item);
-                          },
-                          deletingKey
-                        )}
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} md={8}>
-                  <Stack spacing={2}>
-                    <Card variant="outlined">
-                      <CardContent>
-                        <Stack spacing={2}>
-                          <Typography variant="subtitle1">{t("rules.editor_title")}</Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {t("rules.editor_desc")}
-                          </Typography>
-                          <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSaveRepositoryRules} disabled={saving || !selectedRepositoryUuid}>
-                            {saving ? t("rules.saving") : t("rules.save_repository")}
-                          </Button>
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                    {renderRulesEditor(
-                      repositoryRules,
-                      setRepositoryRules,
-                      t("rules.repository_placeholder"),
-                      handleSaveRepositoryRules,
-                      saving,
-                      loadingRules
-                    )}
-                  </Stack>
-                </Grid>
-              </Grid>
+
+              {repositoryList.length === 0 ? (
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="body2" color="text.secondary" textAlign="center">
+                      {t("rules.empty_list")}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              ) : (
+                <TableContainer component={Paper} variant="outlined">
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>{t("rules.repository_list")}</TableCell>
+                        <TableCell>{t("rules.project_list")}</TableCell>
+                        <TableCell align="right">{t("rules.repository.actions")}</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {repositoryList.map((repo) => (
+                        <TableRow key={repo.repository_uuid}>
+                          <TableCell>
+                            <Typography fontWeight="medium">{repo.repository_name}</Typography>
+                            <Typography variant="body2" color="text.secondary">{repo.repository_id}</Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary">{repo.project_id || "-"}</Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Stack direction="row" spacing={1} justifyContent="flex-end">
+                              <Tooltip title={t("repositories.rules")}>
+                                <IconButton size="small" onClick={() => handleOpenRulesDialog("repository", repo.repository_uuid, repo.repository_name)}>
+                                  <PolicyIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title={t("common.delete")}>
+                                <IconButton size="small" onClick={() => setDeleteDialogRepository(repo)} disabled={deletingKey === repo.repository_uuid}>
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
             </Stack>
           )}
         </Box>
       </Card>
 
+      {/* Rules Editor Dialog */}
+      <Dialog open={rulesDialogOpen} onClose={() => !saving && setRulesDialogOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle>
+          {rulesDialogTarget?.type === "project" && t("rules.dialog_project_title", { name: rulesDialogTarget?.name })}
+          {rulesDialogTarget?.type === "namespace" && t("rules.dialog_namespace_title", { name: rulesDialogTarget?.name })}
+          {rulesDialogTarget?.type === "repository" && t("rules.dialog_repository_title", { name: rulesDialogTarget?.name })}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {rulesDialogTarget?.type === "project" && t("rules.dialog_project_desc")}
+            {rulesDialogTarget?.type === "namespace" && t("rules.dialog_namespace_desc")}
+            {rulesDialogTarget?.type === "repository" && t("rules.dialog_repository_desc")}
+          </Typography>
+          {loadingRules ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <TextField
+              fullWidth
+              multiline
+              rows={12}
+              value={rulesDialogContent}
+              onChange={(e) => setRulesDialogContent(e.target.value)}
+              placeholder={
+                rulesDialogTarget?.type === "project" ? t("rules.project_placeholder") :
+                rulesDialogTarget?.type === "namespace" ? t("rules.namespace_placeholder") :
+                t("rules.repository_placeholder")
+              }
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRulesDialogOpen(false)} disabled={saving}>{t("common.cancel")}</Button>
+          <Button variant="contained" onClick={handleSaveRulesDialog} disabled={saving || loadingRules || !rulesDialogContent.trim()}>
+            {saving ? t("rules.saving") : t("common.save")}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Project Rules Dialog */}
       <Dialog open={Boolean(deleteDialogProject)} onClose={() => !deletingKey && setDeleteDialogProject(null)} fullWidth maxWidth="xs">
         <DialogTitle>{t("rules.delete_project")}</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            {deleteDialogProject && t("rules.delete_confirm", { workspace: deleteDialogProject.project_id })}
-          </DialogContentText>
+          <Typography>{t("rules.delete_confirm", { workspace: deleteDialogProject?.project_id })}</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogProject(null)} disabled={Boolean(deletingKey)}>{t("common.cancel")}</Button>
@@ -815,12 +754,11 @@ const RulesPoliciesPage: React.FC = () => {
         </DialogActions>
       </Dialog>
 
+      {/* Delete Namespace Rules Dialog */}
       <Dialog open={Boolean(deleteDialogNamespace)} onClose={() => !deletingKey && setDeleteDialogNamespace(null)} fullWidth maxWidth="xs">
         <DialogTitle>{t("rules.delete_namespace")}</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            {deleteDialogNamespace && t("rules.delete_confirm", { workspace: `${deleteDialogNamespace.project_id}/${deleteDialogNamespace.namespace}` })}
-          </DialogContentText>
+          <Typography>{t("rules.delete_confirm", { workspace: `${deleteDialogNamespace?.project_id}/${deleteDialogNamespace?.namespace}` })}</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogNamespace(null)} disabled={Boolean(deletingKey)}>{t("common.cancel")}</Button>
@@ -838,12 +776,11 @@ const RulesPoliciesPage: React.FC = () => {
         </DialogActions>
       </Dialog>
 
+      {/* Delete Repository Rules Dialog */}
       <Dialog open={Boolean(deleteDialogRepository)} onClose={() => !deletingKey && setDeleteDialogRepository(null)} fullWidth maxWidth="xs">
         <DialogTitle>{t("rules.delete_repository")}</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            {deleteDialogRepository && t("rules.delete_confirm", { workspace: deleteDialogRepository.name })}
-          </DialogContentText>
+          <Typography>{t("rules.delete_confirm", { workspace: deleteDialogRepository?.name })}</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogRepository(null)} disabled={Boolean(deletingKey)}>{t("common.cancel")}</Button>

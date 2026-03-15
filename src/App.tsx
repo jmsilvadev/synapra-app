@@ -13,6 +13,7 @@ import LogsPage from "./pages/LogsPage";
 import SettingsPage from "./pages/SettingsPage";
 import RepositoriesPage from "./pages/RepositoriesPage";
 import ProjectsPage from "./pages/ProjectsPage";
+import NamespacesPage from "./pages/NamespacesPage";
 import ApiIntegrationsPage from "./pages/ApiIntegrationsPage";
 import SignupPage from "./pages/SignupPage";
 import SignupVerifyPage from "./pages/SignupVerifyPage";
@@ -174,6 +175,7 @@ const AppRoutes: React.FC = () => {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="projects" element={<ProjectsPage />} />
+        <Route path="namespaces" element={<NamespacesPage />} />
         <Route path="rules-policies" element={<RulesPoliciesPage />} />
         <Route path="api" element={<ApiIntegrationsPage />} />
         <Route path="logs" element={<LogsPage />} />

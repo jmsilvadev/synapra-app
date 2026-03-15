@@ -234,6 +234,10 @@ export async function createNamespace(clientId: string, payload: CreateNamespace
   return response.data;
 }
 
+export async function deleteNamespace(clientId: string, namespaceId: string) {
+  await apiClient.delete(`/v1/console/clients/${clientId}/namespaces/${namespaceId}`);
+}
+
 export async function getRepositories(clientId: string, projectId?: string) {
   const params = projectId ? { project_id: projectId } : {};
   const response = await apiClient.get<{ repositories: Repository[] }>(
