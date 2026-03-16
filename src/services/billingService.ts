@@ -9,8 +9,14 @@ export interface BillingPortalSession {
   url: string;
 }
 
-export async function createSubscriptionCheckout(): Promise<CheckoutSession> {
-  const response = await apiClient.post<CheckoutSession>("/v1/billing/subscription/checkout");
+export interface CheckoutRequest {
+  price_id?: string;
+}
+
+export async function createSubscriptionCheckout(organizationId: string, priceId?: string): Promise<CheckoutSession> {
+  const response = await apiClient.post<CheckoutSession>(`/v1/console/clients/${organizationId}/billing/checkout`, {
+    price_id: priceId,
+  } as CheckoutRequest);
   return response.data;
 }
 
@@ -23,6 +29,6 @@ export async function createAddonCheckout(addonCode: string, quantity: number = 
 }
 
 export async function getBillingPortal(): Promise<BillingPortalSession> {
-  const response = await apiClient.get<BillingPortalSession>("/v1/billing/portal");
+  const response = await apiClient.post<BillingPortalSession>("/v1/console/billing/portal");
   return response.data;
 }

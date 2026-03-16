@@ -1,304 +1,256 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Card,
   CardContent,
   Container,
-  Grid,
   Typography,
   CircularProgress,
   Alert,
-  Chip,
   TextField,
-  Autocomplete,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
+  InputAdornment,
+  IconButton,
   List,
   ListItem,
   ListItemText,
   Divider,
+  Chip,
+  Collapse,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import {
-  CallSplit as CallSplitIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon,
   ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  Description as DescriptionIcon,
+  Memory as MemoryIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
-import {
-  getOrganizationDependencies,
-  searchOrganizationFunctions,
-} from "../services/orgService";
-import type { RepoDependency, FunctionMatch } from "../services/orgService";
+import { searchKnowledge } from "../services/adminService";
+import type { KnowledgeSearchChunk } from "../services/adminService";
 
 const OrganizationKnowledgePage: React.FC = () => {
   const { currentOrganizationId } = useAuth();
   const { t } = useI18n();
-  const [dependencies, setDependencies] = useState<RepoDependency[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<FunctionMatch[]>([]);
-  const [selectedFunction, setSelectedFunction] = useState<FunctionMatch | null>(null);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [results, setResults] = useState<KnowledgeSearchChunk[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [expandedResults, setExpandedResults] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState(0);
 
-  useEffect(() => {
-    const load = async () => {
-      if (!currentOrganizationId) {
-        setLoading(false);
-        return;
-      }
-      try {
-        const depsData = await getOrganizationDependencies().catch(() => [] as RepoDependency[]);
-        setDependencies(depsData || []);
-      } catch {
-        setError(t("org.load_error"));
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [currentOrganizationId, t]);
-
-  const fetchSuggestions = useCallback(async (query: string) => {
-    if (!query || query.length < 2) {
-      setSuggestions([]);
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setError(t("org.search_query_required"));
       return;
     }
-    setLoadingSuggestions(true);
+    setLoading(true);
+    setError(null);
+    setHasSearched(true);
+    setExpandedResults(new Set());
     try {
-      const results = await searchOrganizationFunctions(query, 10);
-      setSuggestions(results);
-    } catch {
-      setSuggestions([]);
+      const response = await searchKnowledge(
+        "",
+        searchQuery,
+        undefined,
+        30
+      );
+      setResults(response.results || []);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || t("org.search_error"));
+      setResults([]);
     } finally {
-      setLoadingSuggestions(false);
+      setLoading(false);
     }
-  }, []);
+  };
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery) {
-        fetchSuggestions(searchQuery);
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery("");
+    setResults([]);
+    setHasSearched(false);
+    setError(null);
+    setExpandedResults(new Set());
+  };
+
+  const toggleExpand = (chunkId: string) => {
+    setExpandedResults((prev) => {
+      const next = new Set(prev);
+      if (next.has(chunkId)) {
+        next.delete(chunkId);
       } else {
-        setSuggestions([]);
+        next.add(chunkId);
       }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery, fetchSuggestions]);
+      return next;
+    });
+  };
 
-  if (loading) {
-    return (
-      <Container sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
-      </Container>
-    );
-  }
+  const documentResults = results.filter(
+    (r) => r.source === "text" || r.source === "text,vector" || r.source === "vector,text" || !r.source
+  );
+  const embedResults = results.filter(
+    (r) => r.source === "vector"|| r.source === "text,vector" || r.source === "vector,text"
+  );
 
-  if (error) {
+  const uniqueDocumentResults = Array.from(
+    new Map(documentResults.map((r) => [r.chunk_id, r])).values()
+  );
+  const uniqueEmbedResults = Array.from(
+    new Map(embedResults.map((r) => [r.chunk_id, r])).values()
+  );
+
+  const renderResults = (items: KnowledgeSearchChunk[]) => {
+    if (items.length === 0) {
+      return <Alert severity="info">{t("org.no_results")}</Alert>;
+    }
+
     return (
-      <Container sx={{ py: 4 }}>
-        <Alert severity="error">{error}</Alert>
-      </Container>
+      <List>
+        {items.map((result, idx) => (
+          <React.Fragment key={result.chunk_id}>
+            <ListItem
+              alignItems="flex-start"
+              sx={{ cursor: "pointer" }}
+              onClick={() => toggleExpand(result.chunk_id)}
+            >
+              <ListItemText
+                primary={
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                    <Typography variant="body1" fontWeight="medium" sx={{ flex: "1 1 auto" }}>
+                      {result.title || result.source_path}
+                    </Typography>
+                    <Chip label={result.source_type} size="small" variant="outlined" />
+                    {result.line_start > 0 && (
+                      <Chip label={`L${result.line_start}`} size="small" variant="outlined" />
+                    )}
+                    {expandedResults.has(result.chunk_id) ? (
+                      <ExpandLessIcon fontSize="small" />
+                    ) : (
+                      <ExpandMoreIcon fontSize="small" />
+                    )}
+                  </Box>
+                }
+                secondary={
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {result.source_path}
+                    </Typography>
+                    <Chip
+                      label={`${t("org.score")}: ${(result.score * 100).toFixed(0)}%`}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
+                  </Box>
+                }
+              />
+            </ListItem>
+            <Collapse in={expandedResults.has(result.chunk_id)} timeout="auto">
+              <Box sx={{ px: 2, pb: 2 }}>
+                <Box
+                  sx={{
+                    p: 2,
+                    bgcolor: "action.hover",
+                    borderRadius: 1,
+                    fontFamily: "monospace",
+                    fontSize: "0.875rem",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                    maxHeight: 400,
+                    overflow: "auto",
+                  }}
+                >
+                  {result.content}
+                </Box>
+                {result.section_anchor && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+                    {t("org.section")}: {result.section_anchor}
+                  </Typography>
+                )}
+                {result.symbol && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                    {t("org.symbol")}: {result.symbol}
+                  </Typography>
+                )}
+              </Box>
+            </Collapse>
+            {idx < items.length - 1 && <Divider />}
+          </React.Fragment>
+        ))}
+      </List>
     );
-  }
+  };
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Typography variant="h4" gutterBottom>
-        {t("org.title", "Knowledge")}
+        {t("org.title")}
       </Typography>
-      
-      <Alert severity="info" sx={{ mb: 3 }}>
-        <Typography variant="body2">
-          {t("org.help_text", "Search for functions across all your repositories and see how they're connected between projects.")}
-        </Typography>
-      </Alert>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                {t("org.search_functions", "Search Functions")}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                {t("org.search_desc", "Find functions by name across all repositories in your organization.")}
-              </Typography>
-              
-              <Autocomplete
-                freeSolo
-                options={suggestions}
-                getOptionLabel={(option) => {
-                  if (typeof option === "string") return option;
-                  return option.function.full_name || option.function.name;
-                }}
-                inputValue={searchQuery}
-                onInputChange={(_, value) => {
-                  setSearchQuery(value);
-                  if (!value) {
-                    setSelectedFunction(null);
-                  }
-                }}
-                onChange={(_, value) => {
-                  if (value && typeof value !== "string") {
-                    setSelectedFunction(value);
-                  }
-                }}
-                loading={loadingSuggestions}
-                renderOption={(props, option) => {
-                  const { key, ...otherProps } = props as any;
-                  return (
-                    <li key={key} {...otherProps}>
-                      <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
-                        <Typography variant="body2" fontFamily="monospace">
-                          {option.function.full_name || option.function.name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {option.project_id}/{option.namespace} • {option.function.file_path}:{option.function.line_start}
-                        </Typography>
-                      </Box>
-                    </li>
-                  );
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    placeholder={t("org.search_placeholder", "Start typing a function name...")}
-                    size="small"
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (
-                        <React.Fragment>
-                          {loadingSuggestions ? <CircularProgress color="inherit" size={20} /> : null}
-                          {params.InputProps.endAdornment}
-                        </React.Fragment>
-                      ),
-                    }}
-                  />
-                )}
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+        {t("org.search_all_desc")}
+      </Typography>
+
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <TextField
+            fullWidth
+            size="medium"
+            placeholder={t("org.search_placeholder")}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyPress={handleKeyPress}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  {searchQuery && (
+                    <IconButton size="small" onClick={clearSearch}>
+                      <ClearIcon />
+                    </IconButton>
+                  )}
+                  <IconButton onClick={handleSearch} disabled={loading || !searchQuery.trim()}>
+                    {loading ? <CircularProgress size={24} /> : <SearchIcon />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+        </CardContent>
+      </Card>
+
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      {hasSearched && (
+        <Card>
+          <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+            <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)}>
+              <Tab
+                icon={<DescriptionIcon />}
+                iconPosition="start"
+                label={`${t("org.documents_tab")} (${uniqueDocumentResults.length})`}
               />
-
-              {selectedFunction && (
-                <Box sx={{ mt: 3, p: 2, bgcolor: "background.paper", borderRadius: 1, border: 1, borderColor: "divider" }}>
-                  <Typography variant="subtitle1" gutterBottom fontFamily="monospace">
-                    {selectedFunction.function.full_name || selectedFunction.function.name}
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">
-                        {t("org.project", "Project")}
-                      </Typography>
-                      <Typography variant="body2">
-                        {selectedFunction.project_id}/{selectedFunction.namespace}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">
-                        {t("org.file", "File")}
-                      </Typography>
-                      <Typography variant="body2" fontFamily="monospace" fontSize="0.85rem">
-                        {selectedFunction.function.file_path}:{selectedFunction.function.line_start}
-                      </Typography>
-                    </Grid>
-                    {selectedFunction.function.parameters && selectedFunction.function.parameters.length > 0 && (
-                      <Grid item xs={12}>
-                        <Typography variant="caption" color="text.secondary">
-                          {t("org.parameters", "Parameters")}
-                        </Typography>
-                        <Typography variant="body2" fontFamily="monospace" fontSize="0.85rem">
-                          {selectedFunction.function.parameters.map((p: any) => `${p.name} ${p.type}`).join(", ")}
-                        </Typography>
-                      </Grid>
-                    )}
-                    {selectedFunction.function.return_types && selectedFunction.function.return_types.length > 0 && (
-                      <Grid item xs={12}>
-                        <Typography variant="caption" color="text.secondary">
-                          {t("org.returns", "Returns")}
-                        </Typography>
-                        <Typography variant="body2" fontFamily="monospace" fontSize="0.85rem">
-                          {selectedFunction.function.return_types.join(", ")}
-                        </Typography>
-                      </Grid>
-                    )}
-                  </Grid>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Accordion defaultExpanded>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <CallSplitIcon color="warning" />
-                <Box>
-                  <Typography variant="subtitle1">
-                    {t("org.dependencies", "Cross-Repository Dependencies")} ({dependencies.length})
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t("org.dependencies_desc", "Functions called from one repository to another")}
-                  </Typography>
-                </Box>
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                {t("org.dependencies_help", "These are function calls that cross repository boundaries. Changes to these functions may affect multiple projects.")}
-              </Typography>
-              {dependencies.length > 0 ? (
-                <Box sx={{ maxHeight: 400, overflow: "auto" }}>
-                  <List dense>
-                    {dependencies.map((dep, idx) => (
-                      <React.Fragment key={idx}>
-                        <ListItem>
-                          <ListItemText
-                            primary={
-                              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                <Typography variant="body2">
-                                  {dep.source_project}/{dep.source_namespace}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                  →
-                                </Typography>
-                                <Typography variant="body2">
-                                  {dep.target_project}/{dep.target_namespace}
-                                </Typography>
-                              </Box>
-                            }
-                            secondary={
-                              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                <Typography 
-                                  variant="caption" 
-                                  fontFamily="monospace"
-                                  sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
-                                  onClick={() => {
-                                    setSearchQuery(dep.function_name);
-                                    setSelectedFunction(null);
-                                  }}
-                                >
-                                  {dep.function_name}
-                                </Typography>
-                                <Chip label={`${dep.call_count} ${t("org.calls", "calls")}`} size="small" variant="outlined" />
-                              </Box>
-                            }
-                          />
-                        </ListItem>
-                        {idx < dependencies.length - 1 && <Divider />}
-                      </React.Fragment>
-                    ))}
-                  </List>
-                </Box>
-              ) : (
-                <Alert severity="info">
-                  {t("org.no_dependencies", "No cross-repo dependencies found. Each repository is independent.")}
-                </Alert>
-              )}
-            </AccordionDetails>
-          </Accordion>
-        </Grid>
-      </Grid>
+              <Tab
+                icon={<MemoryIcon />}
+                iconPosition="start"
+                label={`${t("org.embeds_tab")} (${uniqueEmbedResults.length})`}
+              />
+            </Tabs>
+          </Box>
+          <CardContent>
+            {activeTab === 0 && renderResults(uniqueDocumentResults)}
+            {activeTab === 1 && renderResults(uniqueEmbedResults)}
+          </CardContent>
+        </Card>
+      )}
     </Container>
   );
 };

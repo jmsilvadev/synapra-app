@@ -410,6 +410,10 @@ const RulesPoliciesPage: React.FC = () => {
     ? namespaceList.filter((n) => n.project_id === projectFilter)
     : namespaceList;
 
+  const filteredRepositoryList = projectFilter
+    ? repositoryList.filter((r) => r.project_id === projectFilter)
+    : repositoryList;
+
   if (loading) {
     return (
       <Container sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
@@ -639,7 +643,20 @@ const RulesPoliciesPage: React.FC = () => {
                 </Tooltip>
               </Stack>
 
-              {repositoryList.length === 0 ? (
+              <TextField
+                select
+                label={t("rules.filter_by_project")}
+                value={projectFilter}
+                onChange={(e) => setProjectFilter(e.target.value)}
+                sx={{ minWidth: 250 }}
+              >
+                <MenuItem value="">{t("rules.all_projects")}</MenuItem>
+                {projectList.map((p) => (
+                  <MenuItem key={p.project_uuid} value={p.project_id}>{p.name || p.project_id}</MenuItem>
+                ))}
+              </TextField>
+
+              {filteredRepositoryList.length === 0 ? (
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="body2" color="text.secondary" textAlign="center">
@@ -658,7 +675,7 @@ const RulesPoliciesPage: React.FC = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {repositoryList.map((repo) => (
+                      {filteredRepositoryList.map((repo) => (
                         <TableRow key={repo.repository_uuid}>
                           <TableCell>
                             <Typography fontWeight="medium">{repo.repository_name}</Typography>

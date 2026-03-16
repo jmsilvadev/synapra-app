@@ -235,6 +235,7 @@ export type Repository = {
   id: string;
   organization_id: string;
   project_id: string;
+  namespace_id?: string;
   github_repo_id?: number;
   name: string;
   full_name: string;
@@ -245,6 +246,7 @@ export type Repository = {
   last_sync_at?: string;
   sync_status: string;
   sync_error?: string;
+  pending_docs?: number;
   created_at: string;
   updated_at?: string;
 };

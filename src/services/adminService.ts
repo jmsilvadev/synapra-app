@@ -266,6 +266,27 @@ export async function deleteRepository(clientId: string, repositoryId: string) {
   await apiClient.delete(`/v1/console/clients/${clientId}/repositories/${repositoryId}`);
 }
 
+export async function createGitHubFiles(clientId: string, payload: {
+  repo: string;
+  branch: string;
+  project_id: string;
+  namespace_id: string;
+}) {
+  const response = await apiClient.post(`/v1/console/clients/${clientId}/github/files`, payload);
+  return response.data;
+}
+
+export async function syncGitHubRepository(clientId: string, payload: {
+  repo_id: number;
+  repo_name: string;
+  project_id: string;
+  namespace_id: string;
+  branch: string;
+}) {
+  const response = await apiClient.post(`/v1/console/clients/${clientId}/github/repositories`, payload);
+  return response.data;
+}
+
 export async function getProjectRules(clientId: string, projectUuid: string) {
   const response = await apiClient.get<ProjectRules>(
     `/v1/console/clients/${clientId}/rules/projects/${projectUuid}`
@@ -342,4 +363,88 @@ export async function updateRepositoryRules(clientId: string, repositoryUuid: st
 
 export async function deleteRepositoryRules(clientId: string, repositoryUuid: string) {
   await apiClient.delete(`/v1/console/clients/${clientId}/rules/repositories/${repositoryUuid}`);
+}
+
+export type ProjectStats = {
+  project_id: string;
+  project_name: string;
+  namespaces_count: number;
+  repositories_count: number;
+  documents_count: number;
+  chunks_count: number;
+  vectors_count: number;
+};
+
+export type NamespaceStats = {
+  namespace_id: string;
+  namespace_name: string;
+  project_id: string;
+  project_name: string;
+  documents_count: number;
+  chunks_count: number;
+  vectors_count: number;
+};
+
+export type RepositoryStats = {
+  repository_id: string;
+  repository_name: string;
+  project_id: string;
+  project_name: string;
+  documents_count: number;
+  chunks_count: number;
+  vectors_count: number;
+};
+
+export type StatsResponse = {
+  projects: ProjectStats[];
+  namespaces: NamespaceStats[];
+  repositories: RepositoryStats[];
+};
+
+export async function getStats(clientId: string): Promise<StatsResponse> {
+  const response = await apiClient.get<StatsResponse>(`/v1/console/clients/${clientId}/stats`);
+  return response.data;
+}
+
+export type KnowledgeSearchChunk = {
+  chunk_id: string;
+  document_id: string;
+  content: string;
+  score: number;
+  source: string;
+  source_path: string;
+  title: string;
+  source_type: string;
+  section_anchor: string;
+  symbol: string;
+  chunk_index: number;
+  line_start: number;
+  line_end: number;
+};
+
+export type KnowledgeSearchRequest = {
+  project_id: string;
+  namespace_id?: string;
+  query: string;
+  top_k?: number;
+};
+
+export type KnowledgeSearchResponse = {
+  query: string;
+  results: KnowledgeSearchChunk[];
+};
+
+export async function searchKnowledge(
+  projectId: string,
+  query: string,
+  namespaceId?: string,
+  topK?: number
+): Promise<KnowledgeSearchResponse> {
+  const response = await apiClient.post<KnowledgeSearchResponse>("/v1/knowledge/search", {
+    project_id: projectId,
+    query,
+    namespace_id: namespaceId,
+    top_k: topK || 20,
+  });
+  return response.data;
 }

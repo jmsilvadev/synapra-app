@@ -12,20 +12,6 @@ import {
   IconButton,
   Tooltip,
   Chip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  ListItemSecondaryAction,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Table,
   TableBody,
   TableCell,
@@ -33,6 +19,14 @@ import {
   TableHead,
   TableRow,
   Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControlLabel,
+  Checkbox,
+  MenuItem,
 } from "@mui/material";
 import {
   GitHub as GitHubIcon,
@@ -43,13 +37,13 @@ import {
   Folder as FolderIcon,
   Public as PublicIcon,
   Lock as LockIcon,
-  Add as AddIcon,
   Refresh as RefreshIcon,
+  Storage as StorageIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
 import { apiClient, apiBaseURL, extractErrorMessage } from "../services/apiClient";
-import { getProjects, getRepositories, createRepository, deleteRepository } from "../services/adminService";
+import { getProjects, getNamespaces, getRepositories, createRepository, deleteRepository, createGitHubFiles, syncGitHubRepository } from "../services/adminService";
 import type { Project, Repository } from "../types/admin";
 
 interface GitHubIntegration {
@@ -65,24 +59,30 @@ interface GitHubRepository {
   full_name: string;
   private: boolean;
   html_url: string;
+  default_branch?: string;
 }
 
 const RepositoriesPage: React.FC = () => {
   const { currentOrganizationId } = useAuth();
   const { t } = useI18n();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [namespaces, setNamespaces] = useState<{ id: string; name: string; project_id: string }[]>([]);
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [integration, setIntegration] = useState<GitHubIntegration | null>(null);
   const [githubRepos, setGithubRepos] = useState<GitHubRepository[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [openSyncDialog, setOpenSyncDialog] = useState(false);
   const [selectedGithubRepo, setSelectedGithubRepo] = useState<GitHubRepository | null>(null);
+  const [editingRepository, setEditingRepository] = useState<Repository | null>(null);
   const [syncForm, setSyncForm] = useState({
     project_id: "",
+    namespace_id: "",
     default_branch: "main",
+    create_files: true,
   });
 
   useEffect(() => {
@@ -95,8 +95,7 @@ const RepositoriesPage: React.FC = () => {
         const [projectsData, reposData, integrationRes] = await Promise.all([
           getProjects(currentOrganizationId).catch(() => []),
           getRepositories(currentOrganizationId).catch(() => []),
-          apiClient.get(`/v1/console/clients/${currentOrganizationId}/github`)
-            .catch(() => ({ data: { connected: false } })),
+          apiClient.get(`/v1/console/clients/${currentOrganizationId}/github`).catch(() => ({ data: { connected: false } })),
         ]);
         setProjects(projectsData);
         setRepositories(reposData);
@@ -115,9 +114,75 @@ const RepositoriesPage: React.FC = () => {
     void load();
   }, [currentOrganizationId, t]);
 
+  useEffect(() => {
+    const loadNamespaces = async () => {
+      if (!currentOrganizationId || !syncForm.project_id) return;
+      try {
+        const namespacesData = await getNamespaces(currentOrganizationId, syncForm.project_id);
+        setNamespaces(namespacesData);
+        if (namespacesData.length > 0) {
+          setSyncForm(prev => ({ ...prev, namespace_id: namespacesData[0].id }));
+        }
+      } catch (err) {
+        setNamespaces([]);
+      }
+    };
+    void loadNamespaces();
+  }, [currentOrganizationId, syncForm.project_id]);
+
   const handleConnect = async () => {
     if (!currentOrganizationId) return;
-    window.location.href = `${apiBaseURL}/v1/console/clients/${currentOrganizationId}/github/authorize`;
+    const authHeader = apiClient.defaults.headers.common.Authorization as string | undefined;
+    const token = authHeader ? authHeader.replace("Bearer ", "") : "";
+    if (!token) {
+      setError(t("repositories.no_token"));
+      return;
+    }
+    
+    const width = 600;
+    const height = 700;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    
+    const authUrl = `${apiBaseURL}/v1/console/clients/${currentOrganizationId}/github/authorize?token=${encodeURIComponent(token)}`;
+    const popup = window.open(
+      authUrl,
+      "GitHubOAuth",
+      `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,resizable=yes,scrollbars=yes`
+    );
+    
+    if (!popup) {
+      setError(t("repositories.popup_blocked"));
+      return;
+    }
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "github-connected" && event.data?.success) {
+        window.removeEventListener("message", handleMessage);
+        setIntegration({ connected: true, github_user: event.data.user });
+        setSuccess(t("repositories.connected", { user: event.data.user }));
+        loadGithubRepos();
+      }
+    };
+    
+    window.addEventListener("message", handleMessage);
+    
+    const checkClosed = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(checkClosed);
+        window.removeEventListener("message", handleMessage);
+      }
+    }, 500);
+  };
+
+  const loadGithubRepos = async () => {
+    if (!currentOrganizationId) return;
+    try {
+      const reposRes = await apiClient.get(`/v1/console/clients/${currentOrganizationId}/github/repositories`);
+      setGithubRepos(reposRes.data.repositories || []);
+    } catch (err) {
+      console.error("Failed to load GitHub repos:", err);
+    }
   };
 
   const handleDisconnect = async () => {
@@ -141,29 +206,77 @@ const RepositoriesPage: React.FC = () => {
       return;
     }
     setSelectedGithubRepo(repo);
+    setEditingRepository(null);
     setSyncForm({
       project_id: projects[0].id,
+      namespace_id: "",
       default_branch: repo.default_branch || "main",
+      create_files: true,
     });
     setOpenSyncDialog(true);
   };
 
+  const handleResyncClick = async (repo: Repository) => {
+    if (projects.length === 0) {
+      setError(t("repositories.no_projects"));
+      return;
+    }
+    setSelectedGithubRepo(null);
+    setEditingRepository(repo);
+    setSyncForm({
+      project_id: repo.project_id,
+      namespace_id: repo.namespace_id || "",
+      default_branch: repo.default_branch || "main",
+      create_files: false,
+    });
+    
+    if (repo.project_id) {
+      try {
+        const namespacesData = await getNamespaces(currentOrganizationId!, repo.project_id);
+        setNamespaces(namespacesData);
+      } catch (err) {
+        setNamespaces([]);
+      }
+    }
+    setOpenSyncDialog(true);
+  };
+
   const handleSync = async () => {
-    if (!currentOrganizationId || !selectedGithubRepo) return;
+    if (!currentOrganizationId) return;
+    if (!syncForm.project_id || !syncForm.namespace_id) {
+      setError(t("repositories.select_project_namespace"));
+      return;
+    }
+    
+    const repoId = selectedGithubRepo?.id || editingRepository?.github_repo_id;
+    const repoName = selectedGithubRepo?.full_name || editingRepository?.full_name;
+    
+    if (!repoId || !repoName) return;
+    
     setSyncing(true);
     setError(null);
     try {
-      await createRepository(currentOrganizationId, {
+      if (syncForm.create_files && selectedGithubRepo) {
+        await createGitHubFiles(currentOrganizationId, {
+          repo: repoName,
+          branch: syncForm.default_branch,
+          project_id: syncForm.project_id,
+          namespace_id: syncForm.namespace_id,
+        });
+      }
+      await syncGitHubRepository(currentOrganizationId, {
+        repo_id: repoId,
+        repo_name: repoName,
         project_id: syncForm.project_id,
-        github_repo_id: selectedGithubRepo.id,
-        name: selectedGithubRepo.name,
-        full_name: selectedGithubRepo.full_name,
-        html_url: selectedGithubRepo.html_url,
-        default_branch: syncForm.default_branch,
-        is_private: selectedGithubRepo.private,
+        namespace_id: syncForm.namespace_id,
+        branch: syncForm.default_branch,
       });
-      setSuccess(t("repositories.sync_success", { name: selectedGithubRepo.full_name }));
+      setSuccess(editingRepository 
+        ? t("repositories.resync_success", { name: repoName })
+        : t("repositories.sync_success", { name: repoName }));
       setOpenSyncDialog(false);
+      setSelectedGithubRepo(null);
+      setEditingRepository(null);
       const reposData = await getRepositories(currentOrganizationId);
       setRepositories(reposData);
     } catch (err) {
@@ -181,6 +294,19 @@ const RepositoriesPage: React.FC = () => {
       setSuccess(t("repositories.removed"));
     } catch (err) {
       setError(extractErrorMessage(err, t("repositories.remove_error")));
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (!currentOrganizationId) return;
+    setRefreshing(true);
+    try {
+      const reposData = await getRepositories(currentOrganizationId);
+      setRepositories(reposData);
+    } catch (err) {
+      setError(extractErrorMessage(err, t("repositories.load_error")));
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -208,7 +334,14 @@ const RepositoriesPage: React.FC = () => {
 
   return (
     <Container>
-      <Typography variant="h4" sx={{ mb: 3 }}>{t("repositories.title")}</Typography>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
+        <Typography variant="h4">{t("repositories.title")}</Typography>
+        <Tooltip title={t("common.refresh")}>
+          <IconButton onClick={handleRefresh} disabled={refreshing}>
+            <RefreshIcon />
+          </IconButton>
+        </Tooltip>
+      </Stack>
       
       {error && <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess(null)}>{success}</Alert>}
@@ -277,21 +410,28 @@ const RepositoriesPage: React.FC = () => {
                             <Typography variant="body2">{repo.full_name}</Typography>
                           </Stack>
                         </TableCell>
-                        <TableCell>{repo.default_branch}</TableCell>
+                        <TableCell>{repo.default_branch || "main"}</TableCell>
                         <TableCell>
                           <Chip 
-                            label={repo.sync_status} 
-                            color={repo.sync_status === "synced" ? "success" : repo.sync_status === "error" ? "error" : "default"} 
+                            label={repo.pending_docs > 0 ? t("repositories.processing") : (repo.status || "synced")} 
                             size="small" 
+                            color={repo.status === "error" ? "error" : (repo.pending_docs > 0 ? "warning" : "success")} 
                           />
                         </TableCell>
-                        <TableCell align="right">
-                          <Tooltip title={t("common.delete")}>
-                            <IconButton size="small" onClick={() => handleRemoveRepository(repo.id)}>
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </TableCell>
+<TableCell align="right">
+                           <Stack direction="row" spacing={1} justifyContent="flex-end">
+<Tooltip title={t("repositories.resync")}>
+                                <IconButton size="small" onClick={() => handleResyncClick(repo)} disabled={syncing}>
+                                  <SyncIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                             <Tooltip title={t("common.delete")}>
+                               <IconButton size="small" onClick={() => handleRemoveRepository(repo.id)}>
+                                 <DeleteIcon fontSize="small" />
+                               </IconButton>
+                             </Tooltip>
+                           </Stack>
+                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -304,68 +444,125 @@ const RepositoriesPage: React.FC = () => {
 
       {integration?.connected && (
         <>
-          <Typography variant="h5" sx={{ mb: 2 }}>{t("repositories.available")}</Typography>
-          {projects.length === 0 ? (
-            <Alert severity="warning">{t("repositories.no_projects")}</Alert>
+          <Typography variant="h5" sx={{ mb: 2, mt: 3 }}>{t("repositories.available")}</Typography>
+          {githubRepos.length === 0 ? (
+            <Alert severity="info">{t("repositories.no_available")}</Alert>
           ) : (
-            <List>
-              {githubRepos.map((repo) => (
-                <ListItem key={repo.id} divider>
-                  <ListItemIcon>
-                    {repo.private ? <LockIcon /> : <PublicIcon />}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={repo.name}
-                    secondary={repo.full_name}
-                  />
-                  {isRepoSynced(repo.id) ? (
-                    <Chip label={t("repositories.already_synced")} color="success" size="small" />
-                  ) : (
-                    <Button
-                      size="small"
-                      startIcon={<SyncIcon />}
-                      onClick={() => handleSyncClick(repo)}
-                    >
-                      {t("repositories.sync")}
-                    </Button>
-                  )}
-                </ListItem>
-              ))}
-            </List>
+            <TableContainer component={Paper} variant="outlined">
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>{t("repositories.table.name")}</TableCell>
+                    <TableCell>{t("repositories.table.visibility")}</TableCell>
+                    <TableCell align="right">{t("repositories.table.actions")}</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {githubRepos.map((repo) => (
+                    <TableRow key={repo.id}>
+                      <TableCell>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          {repo.private ? <LockIcon fontSize="small" color="action" /> : <PublicIcon fontSize="small" color="action" />}
+                          <Typography variant="body2">{repo.full_name}</Typography>
+                        </Stack>
+                      </TableCell>
+                      <TableCell>
+                        <Chip label={repo.private ? "Private" : "Public"} size="small" variant="outlined" />
+                      </TableCell>
+                      <TableCell align="right">
+                        {isRepoSynced(repo.id) ? (
+                          <Chip label={t("repositories.already_synced")} size="small" color="success" />
+                        ) : (
+                          <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={<SyncIcon />}
+                            onClick={() => handleSyncClick(repo)}
+                          >
+                            {t("repositories.sync")}
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           )}
         </>
       )}
 
       <Dialog open={openSyncDialog} onClose={() => setOpenSyncDialog(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{t("repositories.sync_dialog_title")}</DialogTitle>
+        <DialogTitle>{editingRepository ? t("repositories.resync_dialog_title") : t("repositories.sync_dialog_title")}</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <FormControl fullWidth>
-              <InputLabel>{t("repositories.project")}</InputLabel>
-              <Select
-                value={syncForm.project_id}
-                onChange={(e) => setSyncForm({ ...syncForm, project_id: e.target.value })}
-                label={t("repositories.project")}
-              >
-                {projects.map((p) => (
-                  <MenuItem key={p.id} value={p.id}>
-                    {p.name} ({p.slug})
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {t("repositories.sync_dialog_desc")}
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            <strong>{selectedGithubRepo?.full_name}</strong>
+          </Typography>
+          <Stack spacing={2} sx={{ mt: 2 }}>
+            <TextField
+              select
+              fullWidth
+              label={t("repositories.select_project")}
+              value={syncForm.project_id}
+              onChange={(e) => setSyncForm({ ...syncForm, project_id: e.target.value })}
+            >
+              {projects.map((project) => (
+                <MenuItem key={project.id} value={project.id}>
+                  {project.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              select
+              fullWidth
+              label={t("repositories.select_namespace")}
+              value={syncForm.namespace_id}
+              onChange={(e) => setSyncForm({ ...syncForm, namespace_id: e.target.value })}
+              disabled={!syncForm.project_id || namespaces.length === 0}
+            >
+              {namespaces.map((ns) => (
+                <MenuItem key={ns.id} value={ns.id}>
+                  {ns.name}
+                </MenuItem>
+              ))}
+            </TextField>
             <TextField
               fullWidth
-              label={t("repositories.branch")}
+              label={t("repositories.default_branch")}
               value={syncForm.default_branch}
               onChange={(e) => setSyncForm({ ...syncForm, default_branch: e.target.value })}
             />
+            {!editingRepository && (
+              <>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={syncForm.create_files}
+                      onChange={(e) => setSyncForm({ ...syncForm, create_files: e.target.checked })}
+                    />
+                  }
+                  label={t("repositories.create_files")}
+                />
+                {syncForm.create_files && (
+                  <Typography variant="caption" color="text.secondary">
+                    {t("repositories.create_files_desc")}
+                  </Typography>
+                )}
+              </>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenSyncDialog(false)}>{t("common.cancel")}</Button>
-          <Button onClick={handleSync} variant="contained" disabled={syncing}>
-            {syncing ? t("repositories.syncing") : t("repositories.sync_now")}
+          <Button onClick={() => { setOpenSyncDialog(false); setSelectedGithubRepo(null); setEditingRepository(null); }}>{t("common.cancel")}</Button>
+          <Button
+            variant="contained"
+            onClick={handleSync}
+            disabled={syncing || !syncForm.project_id || !syncForm.namespace_id}
+          >
+            {syncing ? <CircularProgress size={24} /> : editingRepository ? t("repositories.resync") : t("repositories.sync")}
           </Button>
         </DialogActions>
       </Dialog>
