@@ -43,7 +43,7 @@ const LoginPage: React.FC = () => {
             width: "100%",
             maxWidth: 520,
             mx: "auto",
-            mb: 0,
+            mb: 4,
             borderRadius: 3,
           }}
         />

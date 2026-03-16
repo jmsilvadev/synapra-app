@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Box, Button, Card, CardContent, CardHeader, CircularProgress, Container, Grid, Stack, Typography } from "@mui/material";
+import { Box, Button, Card, CardContent, CardHeader, CircularProgress, Container, Grid, Stack, Typography, Alert, Snackbar } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
 import { getPublicPlans } from "../services/publicService";
 import { getSubscription } from "../services/adminService";
+import { createSubscriptionCheckout } from "../services/billingService";
 import type { Plan } from "../services/publicService";
 
 const PlansPage: React.FC = () => {
@@ -15,22 +16,58 @@ const PlansPage: React.FC = () => {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+  const [checkingOut, setCheckingOut] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [plansData] = await Promise.all([
+        const [plansData, subscriptionData] = await Promise.all([
           getPublicPlans(),
           currentOrganizationId ? getSubscription(currentOrganizationId).catch(() => null) : Promise.resolve(null),
         ]);
         setPlans(plansData);
-        setCurrentPlan(plansData.find((p) => p.code === (currentOrganizationId ? null : null))?.code || null);
+        if (subscriptionData) {
+          setCurrentPlan(subscriptionData.plan_code);
+        }
+      } catch (err) {
+        console.error("Failed to load plans:", err);
       } finally {
         setLoading(false);
       }
     };
     load();
   }, [currentOrganizationId]);
+
+  const handleSubscribe = async (plan: Plan) => {
+    if (!currentOrganizationId) {
+      loginWithGoogle();
+      return;
+    }
+
+    if (plan.price === 0) {
+      navigate("/settings");
+      return;
+    }
+
+    if (currentPlan === plan.code) {
+      navigate("/settings");
+      return;
+    }
+
+    setCheckingOut(plan.code);
+    setError(null);
+
+    try {
+      const session = await createSubscriptionCheckout();
+      if (session.url) {
+        window.location.href = session.url;
+      }
+    } catch (err) {
+      setError(t("plans.checkout_error", { defaultValue: "Failed to start checkout. Please try again." }));
+      setCheckingOut(null);
+    }
+  };
 
   const handleLogin = () => {
     loginWithGoogle();
@@ -46,6 +83,10 @@ const PlansPage: React.FC = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 8 }}>
+      <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError(null)}>
+        <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>
+      </Snackbar>
+
       <Stack spacing={4} alignItems="center">
         <Box sx={{ textAlign: "center" }}>
           <Typography variant="h3" gutterBottom>
@@ -100,9 +141,14 @@ const PlansPage: React.FC = () => {
                       variant={plan.featured ? "contained" : "outlined"} 
                       fullWidth 
                       size="large"
-                      onClick={() => navigate("/settings")}
+                      disabled={checkingOut !== null}
+                      onClick={() => handleSubscribe(plan)}
                     >
-                      {currentPlan === plan.code ? t("plans.current", { defaultValue: "Current Plan" }) : t("plans.subscribe", { defaultValue: "Subscribe" })}
+                      {checkingOut === plan.code 
+                        ? t("plans.redirecting", { defaultValue: "Redirecting..." })
+                        : currentPlan === plan.code 
+                          ? t("plans.current", { defaultValue: "Current Plan" })
+                          : t("plans.subscribe", { defaultValue: "Subscribe" })}
                     </Button>
                   ) : (
                     <Button 

@@ -49,9 +49,28 @@ export type RegistrationCompleteResponse = {
   };
 };
 
+export type StripePrice = {
+  ID: string;
+  ProductID: string;
+  Product: {
+    ID: string;
+    Name: string;
+    Metadata: Record<string, string>;
+  } | null;
+  UnitAmount: number;
+  Currency: string;
+  Interval: string;
+  Active: boolean;
+};
+
 export async function getPublicPlans() {
   const response = await apiClient.get<{ plans: Plan[] }>("/v1/public/plans");
   return Array.isArray(response.data?.plans) ? response.data.plans : [];
+}
+
+export async function getStripePrices() {
+  const response = await apiClient.get<{ prices: StripePrice[] }>("/v1/public/stripe/prices");
+  return Array.isArray(response.data?.prices) ? response.data.prices : [];
 }
 
 export async function startRegistration(payload: RegistrationPayload) {

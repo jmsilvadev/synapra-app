@@ -17,6 +17,9 @@ import {
   Api,
   Receipt,
   GitHub,
+  Hub,
+  Folder,
+  Storage,
 } from "@mui/icons-material";
 import { Link, useLocation } from "react-router-dom";
 import { useI18n } from "../i18n";
@@ -36,8 +39,11 @@ const Sidebar: React.FC<SidebarProps> = ({ expanded, setExpanded }) => {
   const { t } = useI18n();
   const menuItems = [
     { text: t("sidebar.dashboard"), icon: <Dashboard />, path: "/dashboard" },
-    { text: t("sidebar.rules"), icon: <Policy />, path: "/rules-policies" },
+    { text: t("sidebar.projects", { defaultValue: "Projects" }), icon: <Folder />, path: "/projects" },
+    { text: t("sidebar.namespaces", { defaultValue: "Namespaces" }), icon: <Storage />, path: "/namespaces" },
     { text: t("sidebar.repositories"), icon: <GitHub />, path: "/repositories" },
+    { text: t("sidebar.rules"), icon: <Policy />, path: "/rules-policies" },
+    { text: t("sidebar.knowledge", { defaultValue: "Knowledge" }), icon: <Hub />, path: "/knowledge" },
     { text: t("sidebar.api"), icon: <Api />, path: "/api" },
     { text: t("sidebar.logs"), icon: <Receipt />, path: "/logs" },
     { text: t("sidebar.settings"), icon: <Settings />, path: "/settings" },

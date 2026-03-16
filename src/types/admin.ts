@@ -62,17 +62,57 @@ export type OrganizationRules = {
   rules_markdown: string;
 };
 
-export type WorkspaceRules = {
+export type ProjectRules = {
   organization_id: string;
+  project_uuid: string;
+  rules_markdown: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type ProjectRuleSummary = {
+  organization_id: string;
+  project_uuid: string;
+  project_id: string;
+  project_name: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type NamespaceRules = {
+  organization_id: string;
+  project_uuid: string;
+  namespace_uuid: string;
   project_id: string;
   namespace: string;
   rules_markdown: string;
+  created_at?: string;
+  updated_at?: string;
 };
 
-export type WorkspaceRuleSummary = {
+export type NamespaceRuleSummary = {
   organization_id: string;
+  project_uuid: string;
+  namespace_uuid: string;
   project_id: string;
   namespace: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type RepositoryRules = {
+  organization_id: string;
+  repository_uuid: string;
+  rules_markdown: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type RepositoryRuleSummary = {
+  organization_id: string;
+  repository_uuid: string;
+  repository_name: string;
+  repository_full_name: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -157,4 +197,67 @@ export type ApiKey = {
 
 export type ApiKeyCreateResponse = ApiKey & {
   secret: string;
+};
+
+export type Project = {
+  id: string;
+  organization_id: string;
+  slug: string;
+  name: string;
+  created_at: string;
+  updated_at?: string;
+};
+
+export type CreateProjectRequest = {
+  slug: string;
+  name: string;
+};
+
+export type UpdateProjectRequest = {
+  slug?: string;
+  name?: string;
+};
+
+export type Namespace = {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  name: string;
+  created_at: string;
+};
+
+export type CreateNamespaceRequest = {
+  project_id: string;
+  name: string;
+};
+
+export type Repository = {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  namespace_id?: string;
+  github_repo_id?: number;
+  name: string;
+  full_name: string;
+  html_url?: string;
+  clone_url?: string;
+  default_branch: string;
+  is_private: boolean;
+  last_sync_at?: string;
+  sync_status: string;
+  sync_error?: string;
+  pending_docs?: number;
+  created_at: string;
+  updated_at?: string;
+};
+
+export type CreateRepositoryRequest = {
+  project_id: string;
+  github_repo_id?: number;
+  name: string;
+  full_name: string;
+  html_url?: string;
+  clone_url?: string;
+  default_branch: string;
+  is_private: boolean;
 };

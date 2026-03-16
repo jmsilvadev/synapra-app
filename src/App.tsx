@@ -12,9 +12,13 @@ import RulesPoliciesPage from "./pages/RulesPoliciesPage";
 import LogsPage from "./pages/LogsPage";
 import SettingsPage from "./pages/SettingsPage";
 import RepositoriesPage from "./pages/RepositoriesPage";
+import ProjectsPage from "./pages/ProjectsPage";
+import NamespacesPage from "./pages/NamespacesPage";
 import ApiIntegrationsPage from "./pages/ApiIntegrationsPage";
 import SignupPage from "./pages/SignupPage";
 import SignupVerifyPage from "./pages/SignupVerifyPage";
+import AuthCliPage from "./pages/AuthCliPage";
+import OrganizationKnowledgePage from "./pages/OrganizationKnowledgePage";
 
 const theme = createTheme({
   palette: {
@@ -158,6 +162,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/features" element={<FeaturesPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/signup/verify" element={<SignupVerifyPage />} />
+        <Route path="/auth/cli" element={<AuthCliPage />} />
         <Route path="*" element={<LoginPage />} />
       </Routes>
     );
@@ -165,14 +170,18 @@ const AppRoutes: React.FC = () => {
 
   return (
     <Routes>
+      <Route path="/auth/cli" element={<AuthCliPage />} />
       <Route path="/" element={<DashboardLayout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="projects" element={<ProjectsPage />} />
+        <Route path="namespaces" element={<NamespacesPage />} />
         <Route path="rules-policies" element={<RulesPoliciesPage />} />
         <Route path="api" element={<ApiIntegrationsPage />} />
         <Route path="logs" element={<LogsPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="repositories" element={<RepositoriesPage />} />
+        <Route path="knowledge" element={<OrganizationKnowledgePage />} />
         <Route path="plans" element={<PlansPage />} />
         <Route path="features" element={<FeaturesPage />} />
       </Route>

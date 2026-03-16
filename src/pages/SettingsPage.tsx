@@ -3,7 +3,6 @@ import {
   Alert,
   Button,
   Card,
-  CardActions,
   CardContent,
   Chip,
   CircularProgress,
@@ -21,6 +20,10 @@ import {
   Box,
   IconButton,
   Tooltip,
+  Snackbar,
+  RadioGroup,
+  Radio,
+  FormControlLabel,
 } from "@mui/material";
 import {
   Business as BusinessIcon,
@@ -32,6 +35,14 @@ import {
   Person as PersonIcon,
   LocationOn as LocationIcon,
   Badge as BadgeIcon,
+  OpenInNew as OpenInNewIcon,
+  Cancel as CancelIcon,
+  Warning as WarningIcon,
+  CheckCircle as CheckCircleIcon,
+  Error as ErrorIcon,
+  HourglassEmpty as HourglassEmptyIcon,
+  ReceiptLong as ReceiptLongIcon,
+  ShoppingCart as ShoppingCartIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
@@ -44,7 +55,10 @@ import {
 } from "../services/adminService";
 import { extractErrorMessage } from "../services/apiClient";
 import { getPublicPlans } from "../services/publicService";
+import { getStripePrices } from "../services/publicService";
+import { getBillingPortal, createSubscriptionCheckout } from "../services/billingService";
 import type { BillingProfile, Client, Subscription } from "../types/admin";
+import type { StripePrice } from "../services/publicService";
 
 function formatDate(locale: string, value?: string) {
   if (!value) return "-";
@@ -55,6 +69,57 @@ function formatDate(locale: string, value?: string) {
     month: "short",
     year: "numeric",
   }).format(date);
+}
+
+function getStatusColor(status: string): "success" | "warning" | "error" | "default" {
+  switch (status) {
+    case "active":
+      return "success";
+    case "trialing":
+      return "warning";
+    case "past_due":
+    case "unpaid":
+    case "canceled":
+      return "error";
+    default:
+      return "default";
+  }
+}
+
+function getStatusIcon(status: string): React.ReactNode {
+  switch (status) {
+    case "active":
+      return <CheckCircleIcon fontSize="small" />;
+    case "trialing":
+      return <HourglassEmptyIcon fontSize="small" />;
+    case "past_due":
+    case "unpaid":
+    case "canceled":
+      return <ErrorIcon fontSize="small" />;
+    default:
+      return null;
+  }
+}
+
+function getStatusLabel(status: string): string {
+  switch (status) {
+    case "active":
+      return "Active";
+    case "trialing":
+      return "Trialing";
+    case "past_due":
+      return "Past Due";
+    case "unpaid":
+      return "Unpaid";
+    case "canceled":
+      return "Canceled";
+    case "incomplete":
+      return "Incomplete";
+    case "checkout_completed":
+      return "Processing";
+    default:
+      return status;
+  }
 }
 
 const SettingsPage: React.FC = () => {
@@ -84,6 +149,14 @@ const SettingsPage: React.FC = () => {
     postal_code: "",
     country_code: "",
   });
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [polling, setPolling] = useState(false);
+  const [stripePrices, setStripePrices] = useState<StripePrice[]>([]);
+  const [openPlanSelect, setOpenPlanSelect] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<string>("");
+  const [loadingPrices, setLoadingPrices] = useState(false);
+  const pollingRef = React.useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -92,7 +165,7 @@ const SettingsPage: React.FC = () => {
         return;
       }
       try {
-        const [clients, publicPlans, nextSubscription, nextBillingProfile] = await Promise.all([
+        const [clients, publicPlans, nextSubscription] = await Promise.all([
           getClients().catch(() => []),
           getPublicPlans().catch(() => []),
           getSubscription(currentOrganizationId).catch(() => null),
@@ -117,7 +190,7 @@ const SettingsPage: React.FC = () => {
         } else {
           setBillingProfile(null);
         }
-        setPlans(publicPlans.map((plan) => ({ code: plan.code, name: plan.name })));
+        setPlans(publicPlans.map((plan) => ({ code: plan.code, name: plan.name, price_cents: plan.price_cents })));
         setPlanForm({ plan: nextSubscription?.plan_code || currentClient?.plan || "" });
         setOrganizationForm({ name: currentClient?.name || "" });
       } catch (err) {
@@ -205,6 +278,158 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  const handleBillingPortal = async () => {
+    setPortalLoading(true);
+    try {
+      const portal = await getBillingPortal();
+      if (portal.url) {
+        window.open(portal.url, "_blank");
+      }
+    } catch (err) {
+      setError(extractErrorMessage(err, t("settings.portal_error")));
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
+  const pollSubscription = async (): Promise<boolean> => {
+    if (!currentOrganizationId) return false;
+    try {
+      const sub = await getSubscription(currentOrganizationId);
+      if (sub && (sub.status === "active" || sub.status === "trialing")) {
+        setSubscription(sub);
+        setSuccess(t("settings.subscription_activated", { defaultValue: "Subscription activated successfully!" }));
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  const startPolling = () => {
+    setPolling(true);
+    let attempts = 0;
+    const maxAttempts = 60;
+    const poll = async () => {
+      attempts++;
+      const activated = await pollSubscription();
+      if (activated || attempts >= maxAttempts) {
+        setPolling(false);
+        if (pollingRef.current) {
+          clearTimeout(pollingRef.current);
+          pollingRef.current = null;
+        }
+        if (!activated && attempts >= maxAttempts) {
+          setError(t("settings.polling_timeout", { defaultValue: "Subscription verification timed out. Please refresh the page." }));
+        }
+        return;
+      }
+      pollingRef.current = setTimeout(poll, 3000);
+    };
+    poll();
+  };
+
+  const stopPolling = () => {
+    setPolling(false);
+    if (pollingRef.current) {
+      clearTimeout(pollingRef.current);
+      pollingRef.current = null;
+    }
+  };
+
+  React.useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        clearTimeout(pollingRef.current);
+      }
+    };
+  }, []);
+
+  const loadStripePrices = async () => {
+    setLoadingPrices(true);
+    try {
+      const prices = await getStripePrices();
+      setStripePrices(prices);
+      return prices;
+    } catch (err) {
+      setError(extractErrorMessage(err, t("settings.prices_error", { defaultValue: "Failed to load plans" })));
+      return [];
+    } finally {
+      setLoadingPrices(false);
+    }
+  };
+
+  const handleSubscribe = async () => {
+    if (!currentOrganizationId) return;
+    if (subscription?.plan_code && hasStripeSubscription) {
+      await proceedToCheckout(subscription.plan_code);
+    } else {
+      const prices = await loadStripePrices();
+      if (prices.length === 0) {
+        setError(t("settings.no_plans", { defaultValue: "No plans available. Please contact support." }));
+        return;
+      }
+      const uniquePlans = prices.filter((price) => price.Product).reduce((acc: StripePrice[], price: StripePrice) => {
+        if (!acc.find(p => p.Product?.ID === price.Product?.ID)) {
+          acc.push(price);
+        }
+        return acc;
+      }, []);
+      if (uniquePlans.length === 1) {
+        await proceedToCheckout(uniquePlans[0].ID);
+      } else {
+        setOpenPlanSelect(true);
+      }
+    }
+  };
+
+  const proceedToCheckout = async (planCode: string) => {
+    if (!currentOrganizationId) return;
+    setCheckoutLoading(true);
+    setError(null);
+    setOpenPlanSelect(false);
+    try {
+      const checkout = await createSubscriptionCheckout(currentOrganizationId, planCode);
+      if (checkout.url) {
+        const width = 600;
+        const height = 800;
+        const left = window.screen.width / 2 - width / 2;
+        const top = window.screen.height / 2 - height / 2;
+        const checkoutWindow = window.open(
+          checkout.url,
+          "StripeCheckout",
+          `width=${width},height=${height},left=${left},top=${top},resizable,scrollbars=yes`
+        );
+        setCheckoutLoading(false);
+        startPolling();
+        const checkClosed = setInterval(() => {
+          if (checkoutWindow?.closed) {
+            clearInterval(checkClosed);
+            if (polling) {
+              pollSubscription();
+            }
+          }
+        }, 1000);
+      }
+    } catch (err) {
+      setError(extractErrorMessage(err, t("settings.checkout_error")));
+      setCheckoutLoading(false);
+    }
+  };
+
+  const handleBillingPortalWithPolling = async () => {
+    await handleBillingPortal();
+    setTimeout(() => {
+      startPolling();
+    }, 2000);
+  };
+
+  const hasStripeSubscription = subscription?.provider === "stripe" && (subscription?.status === "active" || subscription?.status === "trialing" || subscription?.status === "past_due");
+  const isActive = subscription?.status === "active" || subscription?.status === "trialing";
+  const isCanceled = subscription?.cancel_at_period_end || subscription?.status === "canceled";
+  const hasAnySubscription = subscription?.provider && subscription?.status;
+
   return (
     <Container>
       <Typography variant="h4" sx={{ mb: 3 }}>{t("settings.title")}</Typography>
@@ -216,19 +441,19 @@ const SettingsPage: React.FC = () => {
             <CardContent>
               <Stack direction="row" alignItems="center" spacing={2} mb={2}>
                 <CreditCardIcon color="primary" fontSize="large" />
-                <Box>
+                <Box sx={{ flex: 1 }}>
                   <Typography variant="h6">{t("settings.my_plan")}</Typography>
                   <Typography variant="body2" color="text.secondary">
                     {subscription?.plan_code || client?.plan || t("settings.no_subscription")}
                   </Typography>
                 </Box>
                 <Chip
-                  label={subscription?.status || t("settings.undefined_status")}
-                  color={subscription?.status === "active" ? "success" : "default"}
+                  label={subscription ? getStatusLabel(subscription.status) : t("settings.undefined_status")}
+                  color={subscription ? getStatusColor(subscription.status) : "default"}
                   variant="outlined"
                   size="small"
                 />
-                <Box sx={{ ml: "auto" }}>
+                <Box>
                   <Tooltip title={t("common.edit")}>
                     <IconButton color="primary" onClick={() => setOpenPlanEdit(true)} size="small">
                       <EditIcon />
@@ -256,15 +481,18 @@ const SettingsPage: React.FC = () => {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Stack spacing={1}>
-                    {subscription?.provider && (
-                      <Typography variant="body2" color="text.secondary">
-                        {t("settings.provider")}: {subscription.provider}
-                      </Typography>
-                    )}
                     <Typography variant="body2" color="text.secondary">
-                      {t("settings.cancel_at_period_end")}: {subscription?.cancel_at_period_end ? t("common.yes") : t("common.no")}
+                      {t("settings.provider")}: Stripe
                     </Typography>
-                    {subscription?.trial_ends_at && (
+                    {isCanceled && (
+                      <Alert severity="warning" icon={<WarningIcon fontSize="small" />} sx={{ py: 0 }}>
+                        {subscription?.cancel_at_period_end 
+                          ? t("settings.canceling_at_period_end", { defaultValue: "Subscription will cancel at period end" })
+                          : t("settings.subscription_canceled", { defaultValue: "Subscription canceled" })
+                        }
+                      </Alert>
+                    )}
+                    {!isCanceled && subscription?.trial_ends_at && (
                       <Typography variant="body2" color="warning.main">
                         {t("settings.trial_until")}: {formatDate(locale, subscription.trial_ends_at)}
                       </Typography>
@@ -272,6 +500,63 @@ const SettingsPage: React.FC = () => {
                   </Stack>
                 </Grid>
               </Grid>
+{hasStripeSubscription ? (
+                <Box sx={{ mt: 2 }}>
+                  <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={polling ? <CircularProgress size={16} color="inherit" /> : <OpenInNewIcon />}
+                      onClick={handleBillingPortalWithPolling}
+                      disabled={portalLoading || polling}
+                    >
+                      {polling ? t("settings.verifying", { defaultValue: "Verifying..." }) : portalLoading ? t("settings.loading") : t("settings.manage_billing", { defaultValue: "Manage Billing" })}
+                    </Button>
+                    {!isCanceled && isActive && (
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        startIcon={<CancelIcon />}
+                        onClick={handleBillingPortalWithPolling}
+                        disabled={portalLoading || polling}
+                      >
+                        {t("settings.cancel_subscription", { defaultValue: "Cancel Subscription" })}
+                      </Button>
+                    )}
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                    {t("settings.stripe_portal_hint", { defaultValue: "Manage payment methods, view invoices, upgrade/downgrade plan or cancel subscription via Stripe" })}
+                  </Typography>
+                </Box>
+              ) : (
+                <Box sx={{ mt: 2 }}>
+                  {polling ? (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      <Stack direction="row" alignItems="center" spacing={2}>
+                        <CircularProgress size={20} />
+                        <Typography>{t("settings.waiting_payment", { defaultValue: "Waiting for payment confirmation..." })}</Typography>
+                        <Button size="small" onClick={stopPolling}>
+                          {t("common.cancel")}
+                        </Button>
+                      </Stack>
+                    </Alert>
+                  ) : null}
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    size="small"
+                    startIcon={checkoutLoading ? <CircularProgress size={16} color="inherit" /> : <ShoppingCartIcon />}
+                    onClick={handleSubscribe}
+                    disabled={checkoutLoading || polling}
+                  >
+                    {checkoutLoading ? t("settings.loading") : t("settings.subscribe_stripe", { defaultValue: "Subscribe with Stripe" })}
+                  </Button>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                    {t("settings.subscribe_hint", { defaultValue: "Click to start your subscription via Stripe. You will be redirected to complete payment." })}
+                  </Typography>
+                </Box>
+              )}
             </CardContent>
           </Card>
 
@@ -548,6 +833,73 @@ const SettingsPage: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setOpenOrganizationEdit(false)}>{t("common.cancel")}</Button>
           <Button onClick={handleOrganizationSave} variant="contained" disabled={saving}>{t("common.save")}</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={openPlanSelect} onClose={() => setOpenPlanSelect(false)} fullWidth maxWidth="sm">
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <CreditCardIcon color="primary" />
+            {t("settings.select_plan", { defaultValue: "Choose Your Plan" })}
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {t("settings.select_plan_desc", { defaultValue: "Select a plan to continue with your subscription." })}
+          </Typography>
+          {loadingPrices ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <RadioGroup
+              value={selectedPlan}
+              onChange={(_, value) => setSelectedPlan(value)}
+            >
+              {stripePrices
+                .filter((price) => price.Product)
+                .filter((price, index, self) =>
+                  self.findIndex(p => p.Product?.ID === price.Product?.ID) === index
+                )
+                .map((price) => {
+                  const planName = price.Product?.Name || `Plan ${price.ID.slice(-6)}`;
+                  return (
+                    <FormControlLabel
+                      key={price.ID}
+                      value={price.ID}
+                      control={<Radio />}
+                      label={
+                        <Stack direction="row" alignItems="center" spacing={2}>
+                          <Box>
+                            <Typography variant="subtitle1">{planName}</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {(price.UnitAmount / 100).toFixed(2)} {price.Currency.toUpperCase()} / {price.Interval}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      }
+                      sx={{
+                        border: selectedPlan === price.ID ? "1px solid" : "1px solid transparent",
+                        borderColor: "primary.main",
+                        borderRadius: 1,
+                        mb: 1,
+                        p: 1,
+                      }}
+                    />
+                  );
+                })}
+            </RadioGroup>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenPlanSelect(false)}>{t("common.cancel")}</Button>
+          <Button
+            onClick={() => proceedToCheckout(selectedPlan)}
+            variant="contained"
+            disabled={!selectedPlan || checkoutLoading}
+          >
+            {checkoutLoading ? <CircularProgress size={20} /> : t("settings.continue_checkout", { defaultValue: "Continue to Checkout" })}
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>

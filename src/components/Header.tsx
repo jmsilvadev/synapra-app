@@ -21,14 +21,14 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
   const { t } = useI18n();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const logoWidth = isMobile ? 140 : 180;
+  const logoWidth = isMobile ? 160 : 200;
 
   return (
     <AppBar
       position="static"
       sx={{ backgroundColor: "background.default", color: "text.primary" }}
     >
-      <Toolbar>
+      <Toolbar sx={{ minHeight: 64 }}>
         <IconButton
           color="inherit"
           edge="start"
@@ -37,7 +37,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
         >
           <Menu />
         </IconButton>
-        <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center" }}>
+        <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center", height: "100%" }}>
           <Box
             component="img"
             src={`${process.env.PUBLIC_URL || ""}/synapra_final_logo.svg`}
@@ -45,9 +45,8 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
             sx={{
               width: logoWidth,
               height: "auto",
-              maxHeight: 48,
-              borderRadius: 1,
               display: "block",
+              my: "auto",
             }}
           />
         </Box>
