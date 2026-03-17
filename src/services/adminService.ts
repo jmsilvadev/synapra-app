@@ -1,3 +1,4 @@
+import axios from "axios";
 import { apiClient } from "./apiClient";
 import type {
   AdminSession,
@@ -26,6 +27,8 @@ import type {
   NamespaceRuleSummary,
   RepositoryRules,
   RepositoryRuleSummary,
+  WatchSettings,
+  UpdateWatchSettingsRequest,
 } from "../types/admin";
 
 export type DashboardResponse = {
@@ -365,6 +368,32 @@ export async function deleteRepositoryRules(clientId: string, repositoryUuid: st
   await apiClient.delete(`/v1/console/clients/${clientId}/rules/repositories/${repositoryUuid}`);
 }
 
+export async function getWatchSettings(clientId: string, repositoryUuid: string): Promise<WatchSettings | null> {
+  try {
+    const response = await apiClient.get<{ watch_settings: WatchSettings | null }>(
+      `/v1/console/clients/${clientId}/repositories/${repositoryUuid}/watch-settings`
+    );
+    return response.data?.watch_settings || null;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function upsertWatchSettings(
+  clientId: string,
+  repositoryUuid: string,
+  settings: UpdateWatchSettingsRequest
+): Promise<WatchSettings> {
+  const response = await apiClient.put<{ watch_settings: WatchSettings }>(
+    `/v1/console/clients/${clientId}/repositories/${repositoryUuid}/watch-settings`,
+    settings
+  );
+  return response.data.watch_settings;
+}
+
 export type ProjectStats = {
   project_id: string;
   project_name: string;
@@ -373,6 +402,11 @@ export type ProjectStats = {
   documents_count: number;
   chunks_count: number;
   vectors_count: number;
+  embeddings_count: number;
+  functions_count: number;
+  modules_count: number;
+  endpoints_count: number;
+  entities_count: number;
 };
 
 export type NamespaceStats = {
@@ -446,5 +480,27 @@ export async function searchKnowledge(
     namespace_id: namespaceId,
     top_k: topK || 20,
   });
+  return response.data;
+}
+
+export async function getContext(
+  projectId: string,
+  query: string,
+  namespaceId?: string,
+  task?: string,
+  topK?: number
+): Promise<import("../types/admin").ContextResponse> {
+  const body: Record<string, unknown> = {
+    project_id: projectId,
+    query,
+    top_k: topK || 10,
+  };
+  if (namespaceId) {
+    body.namespace_id = namespaceId;
+  }
+  if (task) {
+    body.task = task;
+  }
+  const response = await apiClient.post<import("../types/admin").ContextResponse>("/v1/context", body);
   return response.data;
 }

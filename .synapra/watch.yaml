@@ -1,0 +1,29 @@
+# Synapra Watch Configuration
+# Auto-generated - review and customize
+
+# File patterns to watch
+patterns:
+**/*.js
+**/*.ts
+**/*.jsx
+**/*.tsx
+**/*.json
+**/*.md
+
+# Patterns to exclude
+exclude:
+node_modules/**
+vendor/**
+.git/**
+**/dist/**
+**/build/**
+**/*.min.js
+**/*.generated.*
+**/.cache/**
+**/coverage/**
+
+# Debounce duration for batching changes
+debounce: 5s
+
+# Maximum files per sync batch
+batch_size: 50

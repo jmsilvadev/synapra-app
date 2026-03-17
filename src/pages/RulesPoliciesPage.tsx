@@ -8,6 +8,7 @@ import {
   Policy as PolicyIcon,
   Refresh as RefreshIcon,
   Delete as DeleteIcon,
+  Settings as SettingsIcon,
 } from "@mui/icons-material";
 import {
   Alert,
@@ -39,6 +40,8 @@ import {
   Paper,
 } from "@mui/material";
 import { useAuth } from "../context/AuthContext";
+import { useI18n } from "../i18n";
+import { extractErrorMessage } from "../services/apiClient";
 import {
   getOrganizationRules,
   updateOrganizationRules,
@@ -54,10 +57,10 @@ import {
   getRepositoryRules,
   updateRepositoryRules,
   deleteRepositoryRules,
+  getWatchSettings,
+  upsertWatchSettings,
 } from "../services/adminService";
-import { useI18n } from "../i18n";
-import { extractErrorMessage } from "../services/apiClient";
-import type { ProjectRuleSummary, NamespaceRuleSummary, RepositoryRuleSummary } from "../types/admin";
+import type { ProjectRuleSummary, NamespaceRuleSummary, RepositoryRuleSummary, WatchSettings } from "../types/admin";
 
 function isNotFoundError(error: unknown) {
   return axios.isAxiosError(error) && error.response?.status === 404;
@@ -107,6 +110,17 @@ const RulesPoliciesPage: React.FC = () => {
   const [deleteDialogProject, setDeleteDialogProject] = useState<ProjectRuleSummary | null>(null);
   const [deleteDialogNamespace, setDeleteDialogNamespace] = useState<NamespaceRuleSummary | null>(null);
   const [deleteDialogRepository, setDeleteDialogRepository] = useState<RepositoryRuleSummary | null>(null);
+
+  // Watch settings state
+  const [watchSettingsDialogOpen, setWatchSettingsDialogOpen] = useState(false);
+  const [watchSettingsTarget, setWatchSettingsTarget] = useState<RepositoryRuleSummary | null>(null);
+  const [watchSettings, setWatchSettings] = useState<WatchSettings | null>(null);
+  const [watchSettingsPatterns, setWatchSettingsPatterns] = useState("");
+  const [watchSettingsExclude, setWatchSettingsExclude] = useState("");
+  const [watchSettingsDebounce, setWatchSettingsDebounce] = useState("5s");
+  const [watchSettingsBatchSize, setWatchSettingsBatchSize] = useState(50);
+  const [loadingWatchSettings, setLoadingWatchSettings] = useState(false);
+  const [savingWatchSettings, setSavingWatchSettings] = useState(false);
 
   const loadOrganizationRules = useCallback(async (clientId: string) => {
     try {
@@ -406,6 +420,63 @@ const RulesPoliciesPage: React.FC = () => {
     }
   };
 
+  const handleOpenWatchSettings = async (repo: RepositoryRuleSummary) => {
+    if (!currentOrganizationId) return;
+    setWatchSettingsTarget(repo);
+    setLoadingWatchSettings(true);
+    setWatchSettingsDialogOpen(true);
+    try {
+      const settings = await getWatchSettings(currentOrganizationId, repo.repository_uuid);
+      if (settings) {
+        setWatchSettings(settings);
+        setWatchSettingsPatterns(settings.patterns.join("\n"));
+        setWatchSettingsExclude(settings.exclude.join("\n"));
+        setWatchSettingsDebounce(settings.debounce);
+        setWatchSettingsBatchSize(settings.batch_size);
+      } else {
+        setWatchSettings(null);
+        setWatchSettingsPatterns("");
+        setWatchSettingsExclude("");
+        setWatchSettingsDebounce("5s");
+        setWatchSettingsBatchSize(50);
+      }
+    } catch (err) {
+      if (!isNotFoundError(err)) {
+        setError(extractErrorMessage(err, t("rules.load_error")));
+      }
+      setWatchSettings(null);
+      setWatchSettingsPatterns("");
+      setWatchSettingsExclude("");
+      setWatchSettingsDebounce("5s");
+      setWatchSettingsBatchSize(50);
+    } finally {
+      setLoadingWatchSettings(false);
+    }
+  };
+
+  const handleSaveWatchSettings = async () => {
+    if (!currentOrganizationId || !watchSettingsTarget) return;
+    setSavingWatchSettings(true);
+    setError(null);
+    try {
+      const patterns = watchSettingsPatterns.split("\n").map((p) => p.trim()).filter((p) => p);
+      const exclude = watchSettingsExclude.split("\n").map((p) => p.trim()).filter((p) => p);
+      await upsertWatchSettings(currentOrganizationId, watchSettingsTarget.repository_uuid, {
+        patterns,
+        exclude,
+        debounce: watchSettingsDebounce,
+        batch_size: watchSettingsBatchSize,
+      });
+      setSuccess(t("rules.success.watch_settings_saved"));
+      setWatchSettingsDialogOpen(false);
+      setWatchSettingsTarget(null);
+    } catch (err) {
+      setError(extractErrorMessage(err, t("rules.watch_settings_save_error")));
+    } finally {
+      setSavingWatchSettings(false);
+    }
+  };
+
   const filteredNamespaceList = projectFilter 
     ? namespaceList.filter((n) => n.project_id === projectFilter)
     : namespaceList;
@@ -686,6 +757,11 @@ const RulesPoliciesPage: React.FC = () => {
                           </TableCell>
                           <TableCell align="right">
                             <Stack direction="row" spacing={1} justifyContent="flex-end">
+                              <Tooltip title={t("rules.watch_settings")}>
+                                <IconButton size="small" onClick={() => handleOpenWatchSettings(repo)}>
+                                  <SettingsIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
                               <Tooltip title={t("repositories.rules")}>
                                 <IconButton size="small" onClick={() => handleOpenRulesDialog("repository", repo.repository_uuid, repo.repository_name)}>
                                   <PolicyIcon fontSize="small" />
@@ -811,6 +887,74 @@ const RulesPoliciesPage: React.FC = () => {
             }}
           >
             {t("common.delete")}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Watch Settings Dialog */}
+      <Dialog open={watchSettingsDialogOpen} onClose={() => !savingWatchSettings && setWatchSettingsDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>{t("rules.watch_settings_title", { name: watchSettingsTarget?.repository_name || "" })}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {t("rules.watch_settings_desc")}
+          </Typography>
+          {loadingWatchSettings ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Stack spacing={3}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>{t("rules.patterns_label")}</Typography>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={4}
+                  value={watchSettingsPatterns}
+                  onChange={(e) => setWatchSettingsPatterns(e.target.value)}
+                  placeholder={t("rules.patterns_placeholder")}
+                  helperText={t("rules.patterns_helper")}
+                />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>{t("rules.exclude_label")}</Typography>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={4}
+                  value={watchSettingsExclude}
+                  onChange={(e) => setWatchSettingsExclude(e.target.value)}
+                  placeholder={t("rules.exclude_placeholder")}
+                  helperText={t("rules.exclude_helper")}
+                />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>{t("rules.debounce_label")}</Typography>
+                <TextField
+                  fullWidth
+                  value={watchSettingsDebounce}
+                  onChange={(e) => setWatchSettingsDebounce(e.target.value)}
+                  placeholder="5s"
+                  helperText={t("rules.debounce_helper")}
+                />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>{t("rules.batch_size_label")}</Typography>
+                <TextField
+                  fullWidth
+                  type="number"
+                  value={watchSettingsBatchSize}
+                  onChange={(e) => setWatchSettingsBatchSize(parseInt(e.target.value, 10) || 50)}
+                  helperText={t("rules.batch_size_helper")}
+                />
+              </Box>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setWatchSettingsDialogOpen(false)} disabled={savingWatchSettings}>{t("common.cancel")}</Button>
+          <Button variant="contained" onClick={handleSaveWatchSettings} disabled={savingWatchSettings || loadingWatchSettings}>
+            {savingWatchSettings ? t("rules.saving") : t("common.save")}
           </Button>
         </DialogActions>
       </Dialog>

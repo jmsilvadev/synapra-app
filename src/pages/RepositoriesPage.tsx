@@ -413,9 +413,9 @@ const RepositoriesPage: React.FC = () => {
                         <TableCell>{repo.default_branch || "main"}</TableCell>
                         <TableCell>
                           <Chip 
-                            label={repo.pending_docs > 0 ? t("repositories.processing") : (repo.status || "synced")} 
+                            label={repo.pending_docs && repo.pending_docs > 0 ? t("repositories.processing") : (repo.sync_status === "syncing" ? t("repositories.syncing") || "Syncing..." : (repo.sync_status || "synced"))} 
                             size="small" 
-                            color={repo.status === "error" ? "error" : (repo.pending_docs > 0 ? "warning" : "success")} 
+                            color={repo.sync_status === "error" ? "error" : (repo.sync_status === "syncing" ? "primary" : ((repo.pending_docs && repo.pending_docs > 0) ? "warning" : "success"))} 
                           />
                         </TableCell>
 <TableCell align="right">

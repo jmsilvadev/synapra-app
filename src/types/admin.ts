@@ -261,3 +261,131 @@ export type CreateRepositoryRequest = {
   default_branch: string;
   is_private: boolean;
 };
+
+export type WatchSettings = {
+  id: string;
+  repository_id: string;
+  patterns: string[];
+  exclude: string[];
+  debounce: string;
+  batch_size: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type UpdateWatchSettingsRequest = {
+  patterns: string[];
+  exclude: string[];
+  debounce: string;
+  batch_size: number;
+};
+
+export type ContextFunction = {
+  name: string;
+  full_name: string;
+  file_path: string;
+  line_start: number;
+  line_end: number;
+  receiver?: string;
+  is_exported: boolean;
+  is_method: boolean;
+  return_types?: string[];
+  score: number;
+};
+
+export type ContextType = {
+  name: string;
+  file_path: string;
+  line_start: number;
+  line_end: number;
+  type_kind: string;
+  fields?: ContextField[];
+  embeds?: string[];
+  methods?: string[];
+  score: number;
+};
+
+export type ContextField = {
+  name: string;
+  type: string;
+};
+
+export type ContextInterface = {
+  name: string;
+  file_path: string;
+  line_start: number;
+  line_end: number;
+  methods?: string[];
+  score: number;
+};
+
+export type ContextCall = {
+  caller_name: string;
+  callee_name: string;
+  callee_file?: string;
+  call_type: string;
+};
+
+export type ContextImplementation = {
+  interface_name: string;
+  implementor_name: string;
+  implementor_file?: string;
+};
+
+export type ContextResponse = {
+  query: string;
+  task?: string;
+  files?: ContextFile[];
+  modules?: ContextModule[];
+  endpoints?: ContextEndpoint[];
+  memories?: ContextMemory[];
+  summary: string;
+  functions?: ContextFunction[];
+  types?: ContextType[];
+  interfaces?: ContextInterface[];
+  calls?: ContextCall[];
+  implementations?: ContextImplementation[];
+  graph_summary?: string;
+  memory_sync?: string;
+  memory_sync_details?: {
+    memory_type?: string;
+    confidence?: number;
+    margin?: number;
+    secondary_type?: string;
+  };
+};
+
+export type ContextFile = {
+  path: string;
+  content?: string;
+  score: number;
+  source?: string;
+  source_type?: string;
+  line_start?: number;
+  line_end?: number;
+  section_anchor?: string;
+  symbol?: string;
+  relevance?: string;
+};
+
+export type ContextModule = {
+  name: string;
+  path: string;
+  type: string;
+  relevance?: string;
+};
+
+export type ContextEndpoint = {
+  method: string;
+  path: string;
+  handler?: string;
+  relevance?: string;
+};
+
+export type ContextMemory = {
+  id: string;
+  type: string;
+  title: string;
+  content: string;
+  created_at: string;
+};

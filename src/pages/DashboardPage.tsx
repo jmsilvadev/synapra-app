@@ -233,6 +233,8 @@ const DashboardPage: React.FC = () => {
                       <TableCell align="center">{t("dashboard.project_repositories")}</TableCell>
                       <TableCell align="center">{t("dashboard.documents")}</TableCell>
                       <TableCell align="center">{t("dashboard.chunks")}</TableCell>
+                      <TableCell align="center">{t("dashboard.embeddings")}</TableCell>
+                      <TableCell align="center">{t("dashboard.graph")}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -256,11 +258,22 @@ const DashboardPage: React.FC = () => {
                         <TableCell align="center">
                           <Typography>{project.chunks_count.toLocaleString()}</Typography>
                         </TableCell>
+                        <TableCell align="center">
+                          <Typography>{(project.embeddings_count || 0).toLocaleString()}</Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Stack direction="row" spacing={0.5} justifyContent="center">
+                            <Chip label={`F: ${(project.functions_count || 0).toLocaleString()}`} size="small" variant="outlined" />
+                            <Chip label={`M: ${(project.modules_count || 0).toLocaleString()}`} size="small" variant="outlined" />
+                            <Chip label={`E: ${(project.endpoints_count || 0).toLocaleString()}`} size="small" variant="outlined" />
+                            <Chip label={`T: ${(project.entities_count || 0).toLocaleString()}`} size="small" variant="outlined" />
+                          </Stack>
+                        </TableCell>
                       </TableRow>
                     ))}
                     {projectStats.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} align="center">
+                        <TableCell colSpan={7} align="center">
                           <Typography color="text.secondary">{t("dashboard.no_projects")}</Typography>
                         </TableCell>
                       </TableRow>

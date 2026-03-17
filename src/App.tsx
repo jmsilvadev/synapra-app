@@ -18,6 +18,8 @@ import ApiIntegrationsPage from "./pages/ApiIntegrationsPage";
 import SignupPage from "./pages/SignupPage";
 import SignupVerifyPage from "./pages/SignupVerifyPage";
 import AuthCliPage from "./pages/AuthCliPage";
+import GettingStartedPage from "./pages/GettingStartedPage";
+import DownloadsPage from "./pages/DownloadsPage";
 import OrganizationKnowledgePage from "./pages/OrganizationKnowledgePage";
 
 const theme = createTheme({
@@ -182,6 +184,8 @@ const AppRoutes: React.FC = () => {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="repositories" element={<RepositoriesPage />} />
         <Route path="knowledge" element={<OrganizationKnowledgePage />} />
+        <Route path="getting-started" element={<GettingStartedPage />} />
+        <Route path="downloads" element={<DownloadsPage />} />
         <Route path="plans" element={<PlansPage />} />
         <Route path="features" element={<FeaturesPage />} />
       </Route>
