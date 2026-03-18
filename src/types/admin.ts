@@ -234,6 +234,11 @@ export type RepositoryRuleSummary = {
   repository_uuid: string;
   repository_name: string;
   repository_full_name: string;
+  project_uuid?: string;
+  project_id?: string;
+  project_name?: string;
+  namespace_uuid?: string;
+  namespace_name?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -244,6 +249,14 @@ export type AuditLogRecord = {
   action: string;
   metadata: string;
   created_at: string;
+};
+
+export type AuditLogMetadata = {
+  actor_user_id?: string;
+  actor_email?: string;
+  actor_name?: string;
+  actor_role?: string;
+  [key: string]: unknown;
 };
 
 export type AuditActionStats = {

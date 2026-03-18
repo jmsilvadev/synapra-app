@@ -132,10 +132,21 @@ export async function getDeviceRegistrations(clientId: string) {
   return asArray(response.data?.devices);
 }
 
-export async function getAuditLogs(clientId: string, action?: string, startDate?: string, endDate?: string, limit = 20, offset = 0) {
+export async function getAuditLogs(
+  clientId: string,
+  action?: string,
+  member?: string,
+  startDate?: string,
+  endDate?: string,
+  limit = 20,
+  offset = 0
+) {
   const params: Record<string, string> = { client_id: clientId, limit: String(limit), offset: String(offset) };
   if (action) {
     params.action = action;
+  }
+  if (member) {
+    params.member = member;
   }
   if (startDate) {
     params.start_date = startDate;
@@ -594,6 +605,16 @@ export async function createSkill(payload: CreateSkillPayload) {
     context_strategy: "compressed",
     config: {},
     enabled: true,
+  });
+  return response.data;
+}
+
+export async function updateSkill(skillId: string, payload: { name: string; instructions: string }) {
+  const response = await apiClient.put<SkillDefinition>(`/v1/skills/${skillId}`, {
+    name: payload.name,
+    instructions: payload.instructions,
+    prompt_template: payload.instructions,
+    description: payload.instructions,
   });
   return response.data;
 }

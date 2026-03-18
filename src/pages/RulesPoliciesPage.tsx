@@ -675,7 +675,9 @@ const RulesPoliciesPage: React.FC = () => {
                             <Typography fontWeight="medium">{namespace.namespace}</Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" color="text.secondary">{namespace.project_id}</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {projectList.find((p) => p.project_uuid === namespace.project_uuid)?.project_name || namespace.project_id || "-"}
+                            </Typography>
                           </TableCell>
                           <TableCell align="right">
                             <Stack direction="row" spacing={1} justifyContent="flex-end">
@@ -742,6 +744,7 @@ const RulesPoliciesPage: React.FC = () => {
                       <TableRow>
                         <TableCell>{t("rules.repository_list")}</TableCell>
                         <TableCell>{t("rules.project_list")}</TableCell>
+                        <TableCell>{t("rules.namespace_column")}</TableCell>
                         <TableCell align="right">{t("rules.repository.actions")}</TableCell>
                       </TableRow>
                     </TableHead>
@@ -753,7 +756,10 @@ const RulesPoliciesPage: React.FC = () => {
                             <Typography variant="body2" color="text.secondary">{repo.repository_id}</Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" color="text.secondary">{repo.project_id || "-"}</Typography>
+                            <Typography variant="body2" color="text.secondary">{repo.project_name || repo.project_id || "-"}</Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary">{repo.namespace_name || "-"}</Typography>
                           </TableCell>
                           <TableCell align="right">
                             <Stack direction="row" spacing={1} justifyContent="flex-end">

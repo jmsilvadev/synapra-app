@@ -7,7 +7,13 @@ import {
   CardContent,
   CircularProgress,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -20,12 +26,14 @@ import {
   TableRow,
   Paper,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
 import { extractErrorMessage } from "../services/apiClient";
-import { createCommand, listCommands, listSkills } from "../services/adminService";
+import { createCommand, deleteCommand, listCommands, listSkills } from "../services/adminService";
 import type { CommandDefinition, SkillDefinition } from "../types/admin";
 
 function normalizeTrigger(slug: string): string {
@@ -46,6 +54,10 @@ const CommandsPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Delete dialog state
+  const [deleteCommandTarget, setDeleteCommandTarget] = useState<CommandDefinition | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -99,6 +111,33 @@ const CommandsPage: React.FC = () => {
   const getSkillName = (skillId: string) => {
     const sk = skills.find((s) => s.id === skillId);
     return sk ? sk.name : skillId;
+  };
+
+  const handleOpenDelete = (command: CommandDefinition) => {
+    setDeleteCommandTarget(command);
+    setError(null);
+    setSuccess(null);
+  };
+
+  const handleCloseDelete = () => {
+    setDeleteCommandTarget(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteCommandTarget) return;
+    setDeleting(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await deleteCommand(deleteCommandTarget.id);
+      setSuccess(t("commands.success.deleted", { defaultValue: "Command deleted successfully" }));
+      setDeleteCommandTarget(null);
+      await loadData();
+    } catch (err) {
+      setError(extractErrorMessage(err, t("commands.delete_error", { defaultValue: "Failed to delete command" })));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -175,6 +214,7 @@ const CommandsPage: React.FC = () => {
                     <TableRow>
                       <TableCell>{t("commands.columns.trigger", { defaultValue: "Trigger" })}</TableCell>
                       <TableCell>{t("commands.columns.skill", { defaultValue: "Skill" })}</TableCell>
+                      <TableCell align="right">{t("commands.columns.actions", { defaultValue: "Actions" })}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -182,11 +222,18 @@ const CommandsPage: React.FC = () => {
                       <TableRow key={command.id}>
                         <TableCell>{command.trigger}</TableCell>
                         <TableCell>{getSkillName(command.skill_id)}</TableCell>
+                        <TableCell align="right">
+                          <Tooltip title={t("commands.actions.delete", { defaultValue: "Delete" })}>
+                            <IconButton size="small" color="error" onClick={() => handleOpenDelete(command)} aria-label="delete command">
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
                       </TableRow>
                     ))}
                     {commands.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={2} align="center" sx={{ py: 3 }}>
+                        <TableCell colSpan={3} align="center" sx={{ py: 3 }}>
                           {t("commands.empty", { defaultValue: "No commands found" })}
                         </TableCell>
                       </TableRow>
@@ -198,6 +245,29 @@ const CommandsPage: React.FC = () => {
           </CardContent>
         </Card>
       </Stack>
+
+      {/* Delete Command Confirmation Dialog */}
+      <Dialog open={!!deleteCommandTarget} onClose={handleCloseDelete}>
+        <DialogTitle>{t("commands.delete.title", { defaultValue: "Delete Command" })}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {t("commands.delete.confirm", {
+              defaultValue: `Are you sure you want to delete the command "{{trigger}}"? This action cannot be undone.`,
+              trigger: deleteCommandTarget?.trigger ?? "",
+            })}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDelete} disabled={deleting}>
+            {t("common.cancel", { defaultValue: "Cancel" })}
+          </Button>
+          <Button variant="contained" color="error" onClick={handleConfirmDelete} disabled={deleting}>
+            {deleting
+              ? t("commands.delete.deleting", { defaultValue: "Deleting..." })
+              : t("commands.delete.confirm_button", { defaultValue: "Delete" })}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

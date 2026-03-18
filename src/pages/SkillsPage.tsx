@@ -7,6 +7,12 @@ import {
   CardContent,
   CircularProgress,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  IconButton,
   Stack,
   Table,
   TableBody,
@@ -16,12 +22,15 @@ import {
   TableRow,
   Paper,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
 import { extractErrorMessage } from "../services/apiClient";
-import { createSkill, listSkills } from "../services/adminService";
+import { createSkill, deleteSkill, listSkills, updateSkill } from "../services/adminService";
 import type { SkillDefinition } from "../types/admin";
 
 const SkillsPage: React.FC = () => {
@@ -35,6 +44,16 @@ const SkillsPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Edit dialog state
+  const [editSkill, setEditSkill] = useState<SkillDefinition | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editInstructions, setEditInstructions] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+
+  // Delete dialog state
+  const [deleteSkillTarget, setDeleteSkillTarget] = useState<SkillDefinition | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadSkills = useCallback(async () => {
     setLoading(true);
@@ -84,6 +103,74 @@ const SkillsPage: React.FC = () => {
       setError(extractErrorMessage(err, t("skills.create_error", { defaultValue: "Failed to create skill" })));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleOpenEdit = (skill: SkillDefinition) => {
+    setEditSkill(skill);
+    setEditName(skill.name);
+    setEditInstructions(skill.instructions || skill.prompt_template || skill.description || "");
+    setError(null);
+    setSuccess(null);
+  };
+
+  const handleCloseEdit = () => {
+    setEditSkill(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editSkill) return;
+    if (!editName.trim()) {
+      setError(t("skills.validation.name", { defaultValue: "Skill name is required" }));
+      return;
+    }
+    if (!editInstructions.trim()) {
+      setError(t("skills.validation.instructions", { defaultValue: "Instructions are required" }));
+      return;
+    }
+    setEditSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await updateSkill(editSkill.id, { name: editName.trim(), instructions: editInstructions.trim() });
+      setSuccess(t("skills.success.updated", { defaultValue: "Skill updated successfully" }));
+      setEditSkill(null);
+      await loadSkills();
+    } catch (err) {
+      setError(extractErrorMessage(err, t("skills.update_error", { defaultValue: "Failed to update skill" })));
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleOpenDelete = (skill: SkillDefinition) => {
+    setDeleteSkillTarget(skill);
+    setError(null);
+    setSuccess(null);
+  };
+
+  const handleCloseDelete = () => {
+    setDeleteSkillTarget(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteSkillTarget) return;
+    setDeleting(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await deleteSkill(deleteSkillTarget.id);
+      setSuccess(t("skills.success.deleted", { defaultValue: "Skill deleted successfully" }));
+      setDeleteSkillTarget(null);
+      await loadSkills();
+    } catch (err: unknown) {
+      const msg = extractErrorMessage(err, t("skills.delete_error", { defaultValue: "Failed to delete skill" }));
+      const isConflict = (err as { response?: { status?: number } })?.response?.status === 409;
+      setError(isConflict
+        ? t("skills.delete_error_used_by_command", { defaultValue: "This skill cannot be deleted because it is used by one or more commands. Delete the commands first." })
+        : msg);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -152,6 +239,7 @@ const SkillsPage: React.FC = () => {
                       <TableCell>{t("skills.columns.name", { defaultValue: "Name" })}</TableCell>
                       <TableCell>{t("skills.columns.scope", { defaultValue: "Scope" })}</TableCell>
                       <TableCell>{t("skills.columns.instructions", { defaultValue: "Instructions" })}</TableCell>
+                      <TableCell align="right">{t("skills.columns.actions", { defaultValue: "Actions" })}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -160,11 +248,23 @@ const SkillsPage: React.FC = () => {
                         <TableCell>{skill.name}</TableCell>
                         <TableCell>{skill.scope}</TableCell>
                         <TableCell sx={{ whiteSpace: "pre-wrap" }}>{skill.instructions || skill.prompt_template || skill.description}</TableCell>
+                        <TableCell align="right">
+                          <Tooltip title={t("skills.actions.edit", { defaultValue: "Edit" })}>
+                            <IconButton size="small" onClick={() => handleOpenEdit(skill)} aria-label="edit skill">
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title={t("skills.actions.delete", { defaultValue: "Delete" })}>
+                            <IconButton size="small" color="error" onClick={() => handleOpenDelete(skill)} aria-label="delete skill">
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
                       </TableRow>
                     ))}
                     {skills.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={3} align="center" sx={{ py: 3 }}>
+                        <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
                           {t("skills.empty", { defaultValue: "No skills found" })}
                         </TableCell>
                       </TableRow>
@@ -176,6 +276,63 @@ const SkillsPage: React.FC = () => {
           </CardContent>
         </Card>
       </Stack>
+
+      {/* Edit Skill Dialog */}
+      <Dialog open={!!editSkill} onClose={handleCloseEdit} fullWidth maxWidth="sm">
+        <DialogTitle>{t("skills.edit.title", { defaultValue: "Edit Skill" })}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label={t("skills.form.name", { defaultValue: "Skill Name" })}
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              fullWidth
+              autoFocus
+            />
+            <TextField
+              label={t("skills.form.instructions", { defaultValue: "Instructions" })}
+              value={editInstructions}
+              onChange={(e) => setEditInstructions(e.target.value)}
+              multiline
+              minRows={6}
+              fullWidth
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseEdit} disabled={editSaving}>
+            {t("common.cancel", { defaultValue: "Cancel" })}
+          </Button>
+          <Button variant="contained" onClick={handleSaveEdit} disabled={editSaving}>
+            {editSaving
+              ? t("skills.edit.saving", { defaultValue: "Saving..." })
+              : t("skills.edit.save", { defaultValue: "Save" })}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Skill Confirmation Dialog */}
+      <Dialog open={!!deleteSkillTarget} onClose={handleCloseDelete}>
+        <DialogTitle>{t("skills.delete.title", { defaultValue: "Delete Skill" })}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {t("skills.delete.confirm", {
+              defaultValue: `Are you sure you want to delete the skill "{{name}}"? This action cannot be undone.`,
+              name: deleteSkillTarget?.name ?? "",
+            })}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDelete} disabled={deleting}>
+            {t("common.cancel", { defaultValue: "Cancel" })}
+          </Button>
+          <Button variant="contained" color="error" onClick={handleConfirmDelete} disabled={deleting}>
+            {deleting
+              ? t("skills.delete.deleting", { defaultValue: "Deleting..." })
+              : t("skills.delete.confirm_button", { defaultValue: "Delete" })}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
