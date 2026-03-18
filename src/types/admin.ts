@@ -10,6 +10,39 @@ export type AdminUser = {
   active: boolean;
 };
 
+export type User = {
+  id: string;
+  organization_id?: string;
+  role?: string;
+  external_subject?: string;
+  email: string;
+  name: string;
+  picture_url?: string;
+  active: boolean;
+  last_login_at?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type Invitation = {
+  id: string;
+  organization_id: string;
+  organization_name?: string;
+  email: string;
+  role: string;
+  invited_by_user_id?: string;
+  token?: string;
+  expires_at: string;
+  accepted_at?: string;
+  created_at?: string;
+};
+
+export type CreateInvitationRequest = {
+  organization_id: string;
+  email: string;
+  role: string;
+};
+
 export type AdminSession = {
   token?: string;
   expires_at: string;
@@ -43,6 +76,58 @@ export type Usage = {
   search_requests_24h: number;
   ingestion_requests: number;
   approx_tokens_stored: number;
+  limits?: {
+    max_stored_chunks: number;
+    max_stored_memories: number;
+    max_search_requests_24h: number;
+    max_ingestion_requests: number;
+    max_approx_tokens_stored: number;
+  };
+  summary?: {
+    stored_chunks: {
+      used: number;
+      limit: number;
+      remaining: number;
+      percent_consumed: number;
+    };
+    stored_memories: {
+      used: number;
+      limit: number;
+      remaining: number;
+      percent_consumed: number;
+    };
+    search_requests_24h: {
+      used: number;
+      limit: number;
+      remaining: number;
+      percent_consumed: number;
+    };
+    ingestion_requests: {
+      used: number;
+      limit: number;
+      remaining: number;
+      percent_consumed: number;
+    };
+    approx_tokens_stored: {
+      used: number;
+      limit: number;
+      remaining: number;
+      percent_consumed: number;
+    };
+  };
+  scu?: {
+    monthly_allowance: number;
+    consumed: number;
+    remaining: number;
+    percent_consumed: number;
+    billing_period_start?: string;
+    billing_period_end?: string;
+    by_operation?: Array<{
+      operation_type: string;
+      scu_consumed: number;
+      operations: number;
+    }>;
+  };
 };
 
 export type Plan = {
@@ -54,6 +139,7 @@ export type Plan = {
   currency_code: string;
   trial_days: number;
   invoice_provider: string;
+  scu_monthly_allowance?: number;
   active: boolean;
 };
 

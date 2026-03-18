@@ -22,9 +22,11 @@ import {
   Storage,
   PlayArrow,
   Download as DownloadIcon,
+  People as PeopleIcon,
 } from "@mui/icons-material";
 import { Link, useLocation } from "react-router-dom";
 import { useI18n } from "../i18n";
+import { useAuth } from "../context/AuthContext";
 
 const DRAWER_WIDTH = 280;
 const MINI_DRAWER_WIDTH = 80;
@@ -39,6 +41,8 @@ const Sidebar: React.FC<SidebarProps> = ({ expanded, setExpanded }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const location = useLocation();
   const { t } = useI18n();
+  const { user } = useAuth();
+  const isViewer = String(user?.role || "").toLowerCase() === "viewer";
   const menuItems = [
     { text: t("sidebar.knowledge", { defaultValue: "Knowledge" }), icon: <Hub />, path: "/knowledge" },
     { text: t("sidebar.getting_started", { defaultValue: "Getting Started" }), icon: <PlayArrow />, path: "/getting-started" },
@@ -48,10 +52,15 @@ const Sidebar: React.FC<SidebarProps> = ({ expanded, setExpanded }) => {
     { text: t("sidebar.namespaces", { defaultValue: "Namespaces" }), icon: <Storage />, path: "/namespaces" },
     { text: t("sidebar.repositories"), icon: <GitHub />, path: "/repositories" },
     { text: t("sidebar.rules"), icon: <Policy />, path: "/rules-policies" },
+    { text: t("sidebar.members", { defaultValue: "Members" }), icon: <PeopleIcon />, path: "/members" },
     { text: t("sidebar.api"), icon: <Api />, path: "/api" },
     { text: t("sidebar.logs"), icon: <Receipt />, path: "/logs" },
     { text: t("sidebar.settings"), icon: <Settings />, path: "/settings" },
   ];
+
+  const visibleMenuItems = isViewer
+    ? menuItems.filter((item) => ["/knowledge", "/getting-started", "/downloads"].includes(item.path))
+    : menuItems;
 
   return (
     <Drawer
@@ -73,7 +82,7 @@ const Sidebar: React.FC<SidebarProps> = ({ expanded, setExpanded }) => {
       }}
     >
       <List sx={{ pt: 2 }}>
-        {menuItems.map((item) => (
+        {visibleMenuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
             <ListItemButton
               component={Link}

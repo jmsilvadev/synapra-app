@@ -52,6 +52,17 @@ export async function loginAdminWithFirebase(payload: {
   return response.data;
 }
 
+export async function acceptInvitationWithFirebase(payload: {
+  token: string;
+  id_token: string;
+  email?: string | null;
+  name?: string | null;
+  picture_url?: string | null;
+}) {
+  const response = await apiClient.post<AdminSession>("/v1/console/auth/invitations/accept", payload);
+  return response.data;
+}
+
 export async function getCurrentAdminSession() {
   const response = await apiClient.get<AdminSession>("/v1/console/me");
   return response.data;
@@ -177,6 +188,11 @@ export async function getSubscription(clientId: string) {
   const response = await apiClient.get<Subscription>(
     `/v1/console/clients/${clientId}/billing/subscription`
   );
+  return response.data;
+}
+
+export async function getUsage(clientId: string) {
+  const response = await apiClient.get<Usage>(`/v1/console/clients/${clientId}/usage`);
   return response.data;
 }
 
@@ -502,5 +518,31 @@ export async function getContext(
     body.task = task;
   }
   const response = await apiClient.post<import("../types/admin").ContextResponse>("/v1/context", body);
+  return response.data;
+}
+
+export async function listUsers(clientId: string) {
+  const response = await apiClient.get<{ users: any[] }>(`/v1/console/clients/${clientId}/users`);
+  return asArray(response.data?.users);
+}
+
+export async function listInvitations(clientId: string) {
+  const response = await apiClient.get<{ invitations: any[] }>(`/v1/console/clients/${clientId}/invitations`);
+  return asArray(response.data?.invitations);
+}
+
+export async function createInvitation(
+  clientId: string,
+  payload: { email: string; role: string }
+) {
+  const response = await apiClient.post<any>(`/v1/console/invitations`, {
+    organization_id: clientId,
+    ...payload,
+  });
+  return response.data;
+}
+
+export async function resendInvitation(invitationId: string) {
+  const response = await apiClient.post<any>(`/v1/console/invitations/${invitationId}/resend`);
   return response.data;
 }

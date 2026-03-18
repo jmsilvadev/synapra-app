@@ -12,6 +12,7 @@ import { auth } from "../service/firebase";
 import { getStoredLanguage, translate } from "../i18n";
 import { extractErrorMessage, setAdminToken } from "../services/apiClient";
 import {
+  acceptInvitationWithFirebase,
   getClients,
   getCurrentAdminSession,
   loginAdminWithFirebase,
@@ -28,6 +29,7 @@ type AuthContextType = {
   initializing: boolean;
   loginError: string | null;
   loginWithGoogle: () => Promise<void>;
+  acceptInvitationWithGoogle: (inviteToken: string) => Promise<void>;
   logout: () => Promise<void>;
   setCurrentOrganizationId: (organizationId: string | null) => void;
 };
@@ -38,6 +40,7 @@ const AUTH_TOKEN_KEY = "adminAuthToken";
 const SESSION_KEY = "adminSession";
 const ORGANIZATION_KEY = "adminCurrentOrganizationId";
 const SIGNUP_CONTEXT_KEY = "pendingSignupContext";
+const GETTING_STARTED_SEEN_KEY_PREFIX = "gettingStartedSeen";
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -93,6 +96,24 @@ export function loadPendingSignupContext(): { email?: string; name?: string } | 
 
 export function clearPendingSignupContext() {
   sessionStorage.removeItem(SIGNUP_CONTEXT_KEY);
+}
+
+function gettingStartedSeenKey(userId: string, organizationId: string) {
+  return `${GETTING_STARTED_SEEN_KEY_PREFIX}:${userId}:${organizationId}`;
+}
+
+export function hasSeenGettingStarted(userId?: string | null, organizationId?: string | null) {
+  if (!userId || !organizationId) {
+    return true;
+  }
+  return localStorage.getItem(gettingStartedSeenKey(userId, organizationId)) === "1";
+}
+
+export function markGettingStartedSeen(userId?: string | null, organizationId?: string | null) {
+  if (!userId || !organizationId) {
+    return;
+  }
+  localStorage.setItem(gettingStartedSeenKey(userId, organizationId), "1");
 }
 
 function normalizeSession(session: AdminSession): AdminSession {
@@ -277,6 +298,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [applySession]);
 
+  const acceptInvitationWithGoogle = useCallback(
+    async (inviteToken: string) => {
+      const token = String(inviteToken || "").trim();
+      if (!token) {
+        throw new Error("Invitation token is required");
+      }
+
+      setLoginError(null);
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const firebaseIdToken = await result.user.getIdToken(true);
+        const adminSession = await acceptInvitationWithFirebase({
+          token,
+          id_token: firebaseIdToken,
+          email: result.user.email,
+          name: result.user.displayName,
+          picture_url: result.user.photoURL,
+        });
+        applySession(adminSession);
+      } catch (error) {
+        await signOut(auth).catch(() => undefined);
+        applySession(null);
+        setLoginError(extractErrorMessage(error, tr("auth.google_error")));
+        throw error;
+      }
+    },
+    [applySession]
+  );
+
   const logout = useCallback(async () => {
     try {
       await logoutAdmin();
@@ -296,6 +349,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       initializing,
       loginError,
       loginWithGoogle,
+      acceptInvitationWithGoogle,
       logout,
       setCurrentOrganizationId,
     }),
@@ -304,6 +358,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       initializing,
       loginError,
       loginWithGoogle,
+      acceptInvitationWithGoogle,
       logout,
       session,
       setCurrentOrganizationId,

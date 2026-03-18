@@ -24,6 +24,7 @@ import {
   RadioGroup,
   Radio,
   FormControlLabel,
+  LinearProgress,
 } from "@mui/material";
 import {
   Business as BusinessIcon,
@@ -43,13 +44,25 @@ import {
   HourglassEmpty as HourglassEmptyIcon,
   ReceiptLong as ReceiptLongIcon,
   ShoppingCart as ShoppingCartIcon,
+  QueryStats as QueryStatsIcon,
 } from "@mui/icons-material";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Legend,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
 import {
   getBillingProfile,
   getClients,
   getSubscription,
+  getUsage,
   updateBillingProfile,
   updateClient,
 } from "../services/adminService";
@@ -57,7 +70,7 @@ import { extractErrorMessage } from "../services/apiClient";
 import { getPublicPlans } from "../services/publicService";
 import { getStripePrices } from "../services/publicService";
 import { getBillingPortal, createSubscriptionCheckout } from "../services/billingService";
-import type { BillingProfile, Client, Subscription } from "../types/admin";
+import type { BillingProfile, Client, Subscription, Usage } from "../types/admin";
 import type { StripePrice } from "../services/publicService";
 
 function formatDate(locale: string, value?: string) {
@@ -122,11 +135,43 @@ function getStatusLabel(status: string): string {
   }
 }
 
+function formatUsageNumber(value?: number) {
+  if (value === undefined || value === null) return "-";
+  return value.toLocaleString();
+}
+
+function toPercent(value?: number) {
+  if (value === undefined || value === null || Number.isNaN(value)) return 0;
+  if (value < 0) return 0;
+  if (value > 100) return 100;
+  return value;
+}
+
+function operationLabel(operation: string) {
+  switch (operation) {
+    case "search_retrieval":
+      return "Search";
+    case "embedding_generation":
+      return "Embeddings";
+    case "chunking":
+      return "Chunking";
+    case "indexing":
+      return "Indexing";
+    case "graph_update":
+      return "Graph Update";
+    case "sync_orchestration":
+      return "Sync Orchestration";
+    default:
+      return operation;
+  }
+}
+
 const SettingsPage: React.FC = () => {
   const { currentOrganizationId } = useAuth();
   const { t, locale } = useI18n();
   const [client, setClient] = useState<Client | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [usage, setUsage] = useState<Usage | null>(null);
   const [plans, setPlans] = useState<Array<{ code: string; name: string }>>([]);
   const [billingProfile, setBillingProfile] = useState<BillingProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -165,14 +210,16 @@ const SettingsPage: React.FC = () => {
         return;
       }
       try {
-        const [clients, publicPlans, nextSubscription] = await Promise.all([
+        const [clients, publicPlans, nextSubscription, usageData] = await Promise.all([
           getClients().catch(() => []),
           getPublicPlans().catch(() => []),
           getSubscription(currentOrganizationId).catch(() => null),
+          getUsage(currentOrganizationId).catch(() => null),
         ]);
         const currentClient = clients.find((item) => item.id === currentOrganizationId) || null;
         setClient(currentClient);
         setSubscription(nextSubscription);
+        setUsage(usageData);
         const resolvedBillingProfile = await getBillingProfile(currentOrganizationId).catch(() => null);
         if (resolvedBillingProfile) {
           setBillingProfile(resolvedBillingProfile);
@@ -428,7 +475,24 @@ const SettingsPage: React.FC = () => {
   const hasStripeSubscription = subscription?.provider === "stripe" && (subscription?.status === "active" || subscription?.status === "trialing" || subscription?.status === "past_due");
   const isActive = subscription?.status === "active" || subscription?.status === "trialing";
   const isCanceled = subscription?.cancel_at_period_end || subscription?.status === "canceled";
-  const hasAnySubscription = subscription?.provider && subscription?.status;
+
+  const scuChartData = (usage?.scu?.by_operation || []).map((entry) => ({
+    operation: operationLabel(entry.operation_type),
+    scu: entry.scu_consumed,
+    operations: entry.operations,
+  }));
+  const totalSCUByAction = scuChartData.reduce((sum, entry) => sum + Math.max(entry.scu, 0), 0);
+  const scuLegendPayload = scuChartData.map((entry) => {
+    const percent = totalSCUByAction > 0 ? (Math.max(entry.scu, 0) / totalSCUByAction) * 100 : 0;
+    return {
+      id: entry.operation,
+      type: "square" as const,
+      value: `${entry.operation} (${percent.toFixed(1)}%)`,
+      color: "#0288d1",
+    };
+  });
+  const hasPositiveSCUValues = scuChartData.some((entry) => entry.scu > 0);
+  const hasSCUData = Boolean(usage?.scu && usage.scu.monthly_allowance !== undefined);
 
   return (
     <Container>
@@ -437,6 +501,145 @@ const SettingsPage: React.FC = () => {
       {success && <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess(null)}>{success}</Alert>}
       {loading ? <CircularProgress /> : (
         <Stack spacing={3}>
+          <Card variant="outlined">
+            <CardContent>
+              <Stack direction="row" alignItems="center" spacing={2} mb={2}>
+                <BusinessIcon color="primary" fontSize="large" />
+                <Box>
+                  <Typography variant="h6">{t("settings.organization")}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {client?.name || "-"}
+                  </Typography>
+                </Box>
+                <Chip 
+                  label={client?.id?.slice(0, 8) || "-"} 
+                  size="small" 
+                  variant="outlined" 
+                />
+                <Box sx={{ ml: "auto" }}>
+                  <Tooltip title={t("common.edit")}>
+                    <IconButton color="primary" onClick={() => setOpenOrganizationEdit(true)} size="small">
+                      <EditIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Stack>
+              <Divider sx={{ my: 2 }} />
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <BadgeIcon fontSize="small" color="action" />
+                    <Typography variant="body2" color="text.secondary">
+                      {t("settings.organization_id")}: {client?.id || "-"}
+                    </Typography>
+                  </Stack>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <CalendarIcon fontSize="small" color="action" />
+                    <Typography variant="body2" color="text.secondary">
+                      {t("settings.created_at")}: {formatDate(locale, client?.created_at)}
+                    </Typography>
+                  </Stack>
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+
+          <Card variant="outlined">
+            <CardContent>
+              <Stack direction="row" alignItems="center" spacing={2} mb={2}>
+                <QueryStatsIcon color="primary" fontSize="large" />
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="h6">{t("settings.usage_title", { defaultValue: "Usage & Quotas" })}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {t("settings.usage_subtitle", { defaultValue: "Track total SCU spent, available SCU, and SCU consumption by action." })}
+                  </Typography>
+                </Box>
+                <Chip
+                  label={hasSCUData
+                    ? `${formatUsageNumber(usage?.scu?.remaining)} SCU ${t("settings.remaining", { defaultValue: "remaining" })}`
+                    : t("settings.scu_unavailable", { defaultValue: "SCU data unavailable" })}
+                  color="success"
+                  variant="outlined"
+                  size="small"
+                />
+              </Stack>
+
+              <Stack spacing={2}>
+                <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 2 }}>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    {t("settings.scu_budget", { defaultValue: "SCU Monthly Budget" })}
+                  </Typography>
+                  <Typography variant="h4">
+                    {hasSCUData
+                      ? `${formatUsageNumber(usage?.scu?.consumed)} / ${formatUsageNumber(usage?.scu?.monthly_allowance)}`
+                      : "-"}
+                  </Typography>
+                  <LinearProgress
+                    variant="determinate"
+                    value={hasSCUData ? toPercent(usage?.scu?.percent_consumed) : 0}
+                    sx={{ mt: 1.5, height: 10, borderRadius: 999 }}
+                  />
+                  {hasSCUData ? (
+                    <>
+                      <Stack direction="row" justifyContent="space-between" sx={{ mt: 1 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          {t("settings.consumed", { defaultValue: "Consumed" })}: {toPercent(usage?.scu?.percent_consumed).toFixed(1)}%
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {t("settings.remaining", { defaultValue: "Remaining" })}: {formatUsageNumber(usage?.scu?.remaining)} SCU
+                        </Typography>
+                      </Stack>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.5 }}>
+                        {t("settings.billing_period", { defaultValue: "Billing period" })}: {formatDate(locale, usage?.scu?.billing_period_start)} - {formatDate(locale, usage?.scu?.billing_period_end)}
+                      </Typography>
+                    </>
+                  ) : (
+                    <Alert severity="info" sx={{ mt: 1.5 }}>
+                      {t("settings.scu_unavailable_desc", { defaultValue: "SCU data is not available yet for this organization." })}
+                    </Alert>
+                  )}
+                </Box>
+
+                <Box sx={{ border: 1, borderColor: "divider", borderRadius: 2, p: 2, width: "100%", minWidth: 0 }}>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    {t("settings.scu_by_action", { defaultValue: "SCU Spent by Action" })}
+                  </Typography>
+                  {scuChartData.length > 0 ? (
+                    <Box sx={{ height: 320, width: "100%", minWidth: 0 }}>
+                      <ResponsiveContainer width="100%" height="100%" debounce={50}>
+                        <BarChart data={scuChartData} margin={{ top: 28, right: 16, left: 8, bottom: 8 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="operation" interval={0} minTickGap={24} />
+                          <YAxis
+                            scale={hasPositiveSCUValues ? "log" : "auto"}
+                            domain={hasPositiveSCUValues ? [1, "auto"] : [0, "auto"]}
+                            allowDataOverflow
+                            width={64}
+                            tickFormatter={(value: number) => formatUsageNumber(Math.round(value))}
+                          />
+                          <RechartsTooltip
+                            formatter={(value: number) => [
+                              `${formatUsageNumber(Math.round(value))} SCU`,
+                              t("settings.scu", { defaultValue: "SCU" }),
+                            ]}
+                          />
+                          <Legend verticalAlign="top" align="center" payload={scuLegendPayload} />
+                          <Bar dataKey="scu" fill="#0288d1" radius={[6, 6, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  ) : (
+                    <Alert severity="info" sx={{ mt: 1 }}>
+                      {t("settings.no_scu_consumption", { defaultValue: "No SCU consumption recorded for this billing period yet." })}
+                    </Alert>
+                  )}
+                </Box>
+              </Stack>
+            </CardContent>
+          </Card>
+
           <Card variant="outlined">
             <CardContent>
               <Stack direction="row" alignItems="center" spacing={2} mb={2}>
@@ -510,7 +713,7 @@ const SettingsPage: React.FC = () => {
                       onClick={handleBillingPortalWithPolling}
                       disabled={portalLoading || polling}
                     >
-                      {polling ? t("settings.verifying", { defaultValue: "Verifying..." }) : portalLoading ? t("settings.loading") : t("settings.manage_billing", { defaultValue: "Manage Billing" })}
+                      {polling ? t("settings.verifying", { defaultValue: "Verifying..." }) : portalLoading ? t("settings.loading") : t("settings.manage_billing", { defaultValue: "Manage Subscription" })}
                     </Button>
                     {!isCanceled && isActive && (
                       <Button
@@ -557,51 +760,6 @@ const SettingsPage: React.FC = () => {
                   </Typography>
                 </Box>
               )}
-            </CardContent>
-          </Card>
-
-          <Card variant="outlined">
-            <CardContent>
-              <Stack direction="row" alignItems="center" spacing={2} mb={2}>
-                <BusinessIcon color="primary" fontSize="large" />
-                <Box>
-                  <Typography variant="h6">{t("settings.organization")}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {client?.name || "-"}
-                  </Typography>
-                </Box>
-                <Chip 
-                  label={client?.id?.slice(0, 8) || "-"} 
-                  size="small" 
-                  variant="outlined" 
-                />
-                <Box sx={{ ml: "auto" }}>
-                  <Tooltip title={t("common.edit")}>
-                    <IconButton color="primary" onClick={() => setOpenOrganizationEdit(true)} size="small">
-                      <EditIcon />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              </Stack>
-              <Divider sx={{ my: 2 }} />
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <BadgeIcon fontSize="small" color="action" />
-                    <Typography variant="body2" color="text.secondary">
-                      {t("settings.organization_id")}: {client?.id || "-"}
-                    </Typography>
-                  </Stack>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <CalendarIcon fontSize="small" color="action" />
-                    <Typography variant="body2" color="text.secondary">
-                      {t("settings.created_at")}: {formatDate(locale, client?.created_at)}
-                    </Typography>
-                  </Stack>
-                </Grid>
-              </Grid>
             </CardContent>
           </Card>
 

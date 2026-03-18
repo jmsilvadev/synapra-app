@@ -220,6 +220,35 @@ const DashboardPage: React.FC = () => {
             ))}
           </Grid>
 
+          {/* Chunks Usage */}
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>{t("dashboard.chunks_usage")}</Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={6} md={3}>
+                  <Typography variant="body2" color="text.secondary">{t("dashboard.stored_chunks")}</Typography>
+                  <Typography variant="h5">{projectStats.reduce((sum, p) => sum + p.chunks_count, 0).toLocaleString()}</Typography>
+                </Grid>
+                <Grid item xs={6} md={3}>
+                  <Typography variant="body2" color="text.secondary">{t("dashboard.vectors_stored")}</Typography>
+                  <Typography variant="h5">{projectStats.reduce((sum, p) => sum + p.vectors_count, 0).toLocaleString()}</Typography>
+                </Grid>
+                {metrics && (
+                  <>
+                    <Grid item xs={6} md={3}>
+                      <Typography variant="body2" color="text.secondary">{t("dashboard.queries_total")}</Typography>
+                      <Typography variant="h5">{metrics.total_queries}</Typography>
+                    </Grid>
+                    <Grid item xs={6} md={3}>
+                      <Typography variant="body2" color="text.secondary">{t("dashboard.tokens_saved")}</Typography>
+                      <Typography variant="h5" color="success.main">{metrics.est_tokens_saved.toLocaleString()}</Typography>
+                    </Grid>
+                  </>
+                )}
+              </Grid>
+            </CardContent>
+          </Card>
+
           {/* Projects Stats Table */}
           <Card>
             <CardContent>
@@ -427,35 +456,6 @@ const DashboardPage: React.FC = () => {
               ) : (
                 <Typography color="text.secondary">{t("dashboard.no_data")}</Typography>
               )}
-            </CardContent>
-          </Card>
-
-          {/* Chunks Usage */}
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>{t("dashboard.chunks_usage")}</Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={6} md={3}>
-                  <Typography variant="body2" color="text.secondary">{t("dashboard.stored_chunks")}</Typography>
-                  <Typography variant="h5">{projectStats.reduce((sum, p) => sum + p.chunks_count, 0).toLocaleString()}</Typography>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Typography variant="body2" color="text.secondary">{t("dashboard.vectors_stored")}</Typography>
-                  <Typography variant="h5">{projectStats.reduce((sum, p) => sum + p.vectors_count, 0).toLocaleString()}</Typography>
-                </Grid>
-                {metrics && (
-                  <>
-                    <Grid item xs={6} md={3}>
-                      <Typography variant="body2" color="text.secondary">{t("dashboard.queries_total")}</Typography>
-                      <Typography variant="h5">{metrics.total_queries}</Typography>
-                    </Grid>
-                    <Grid item xs={6} md={3}>
-                      <Typography variant="body2" color="text.secondary">{t("dashboard.tokens_saved")}</Typography>
-                      <Typography variant="h5" color="success.main">{metrics.est_tokens_saved.toLocaleString()}</Typography>
-                    </Grid>
-                  </>
-                )}
-              </Grid>
             </CardContent>
           </Card>
 

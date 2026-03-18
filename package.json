@@ -5,6 +5,7 @@
   "scripts": {
     "start": "cross-env NODE_OPTIONS=--max-old-space-size=4096 react-app-rewired start",
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 CI=true GENERATE_SOURCEMAP=false react-app-rewired build",
+    "build:prerender": "npm run build && react-snap",
     "test": "react-app-rewired test",
     "eject": "react-scripts eject"
   },
@@ -34,7 +35,18 @@
     "@types/react-dom": "18.2.22",
     "cross-env": "^7.0.3",
     "react-app-rewired": "^2.2.1",
+    "react-snap": "^1.23.0",
     "react-scripts": "5.0.1"
+  },
+  "reactSnap": {
+    "include": [
+      "/",
+      "/plans",
+      "/features",
+      "/how-it-works"
+    ],
+    "skipThirdPartyRequests": true,
+    "inlineCss": true
   },
   "browserslist": {
     "production": [
