@@ -6,7 +6,10 @@ Use this file as the contract for how the agent should query Synapra, not as an 
 
 - Always consult Synapra first for project discovery, architecture, flow understanding and code navigation before reading many local files.
 - Treat Synapra as the primary source for discovery in this workspace, not as an optional helper.
-- Start with synapra_search to understand architecture, flows, ownership and likely code locations.
+- Start with synapra_context to understand architecture, flows, ownership and likely code locations.
+- Prefer Synapra commands for execution tasks (implement/explain/fix/analyze/context) using synapra_execute_command.
+- If user intent maps to a command, call synapra_execute_command instead of ad-hoc prompting.
+- Suggest command usage to users when it improves determinism and token usage.
 - Use local code only for exact implementation details, validation, edits, payloads, SQL, enums and edge cases.
 - If Synapra evidence is weak, stale or missing, fall back to code and then write back important findings using synapra_memory_write.
 - Prefer the refs returned by Synapra, such as `path:line` and `path#section`, when choosing what to inspect next.
@@ -14,14 +17,54 @@ Use this file as the contract for how the agent should query Synapra, not as an 
 
 ## MCP Server Connection
 
-- The Synapra MCP server must be configured in your MCP client (Claude Desktop, etc.).
-- The MCP server handles authentication automatically using the API key stored in `~/.synapra/api_key`.
-- No manual HTTP calls or curl commands are needed.
+The Synapra MCP server is your **only** interface to Synapra. Never use curl, HTTP clients, or direct API calls.
+
+### Authentication
+
+- Authentication is handled automatically via the API key stored in `~/.synapra/api_key`.
+- The MCP server reads this key on startup. No configuration is needed inside the agent.
+
+### Available MCP Tools
+
+Use these tools in order of preference:
+
+| Tool | When to use |
+|------|-------------|
+| `synapra_context` | Primary discovery tool — get context for any task or question |
+| `synapra_execute_command` | Execute natural/slash Synapra commands with deterministic skill resolution |
+| `synapra_graph` | Understand project dependency graph and code structure |
+| `synapra_callers` | Find all functions that call a specific function |
+| `synapra_callees` | Find all functions called by a specific function |
+| `synapra_impact` | Analyze impact of changing a file or function |
+| `synapra_changes` | See recent changes to a project |
+| `synapra_changes_file` | Get change history for a specific file |
+| `synapra_changes_summary` | Get summary and risk assessment of recent changes |
+| `synapra_rules` | Fetch workspace and organization coding rules |
+| `synapra_memory_write` | Persist a durable finding for future sessions |
+| `synapra_memory_list` | List stored memories for a project |
+| `synapra_memory_search` | Recall past decisions and engineering notes |
+| `synapra_sync` | Write back code changes and discoveries to the index |
+| `synapra_status` | Verify indexing state of the project |
+| `synapra_watch_start` | Start automatic file watching at session start |
+| `synapra_watch_stop` | Stop file watching at session end |
+| `synapra_org_summary` | Organization-wide summary across all projects |
+| `synapra_org_graph` | Complete knowledge graph for the organization |
+| `synapra_org_endpoints` | All API endpoints across all projects |
+| `synapra_org_dependencies` | Cross-repo dependencies between projects |
+| `synapra_org_search` | Search functions across all projects |
+| `synapra_org_impact` | Cross-repo impact analysis of a function change |
+
+### Forbidden Patterns
+
+- **NEVER** use `curl`, `fetch`, `axios`, `http.Get` or any HTTP client to talk to Synapra.
+- **NEVER** read or write `~/.synapra/api_key` manually.
+- **NEVER** construct Synapra API URLs (e.g. `/v1/knowledge/search`) and call them directly.
+- If an MCP tool is unavailable, inform the user — do not fall back to HTTP.
 
 ## Tool Execution Policy
 
 - Treat the MCP tool calls in this file as required workflow steps, not optional suggestions.
-- Use `synapra_search` for discovery, `synapra_status` for indexing verification, and `synapra_sync` for durable write-back.
+- Use `synapra_context` for discovery, `synapra_status` for indexing verification, and `synapra_sync` for durable write-back.
 - If a task produces durable findings from workspace investigation, not only file edits, `synapra_sync` is still required before the final response.
 - Start file watcher with `synapra_watch_start` at the beginning of a session if you will be making changes.
 - Stop file watcher with `synapra_watch_stop` at the end of a session.

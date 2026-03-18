@@ -3,19 +3,27 @@
 
 # File patterns to watch
 patterns:
-  - **/*.go
+  - **/*.js
   - **/*.ts
+  - **/*.jsx
+  - **/*.tsx
+  - **/*.json
   - **/*.md
-  - **/*.sql
 
 # Patterns to exclude
 exclude:
   - node_modules/**
   - vendor/**
   - .git/**
+  - **/dist/**
+  - **/build/**
+  - **/*.min.js
+  - **/*.generated.*
+  - **/.cache/**
+  - **/coverage/**
 
 # Debounce duration for batching changes
-debounce: 15s
+debounce: 5s
 
 # Maximum files per sync batch
-batch_size: 100
+batch_size: 50
