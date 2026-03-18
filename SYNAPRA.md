@@ -1,9 +1,4 @@
-# synapra workspace memory
-
-- project: `synapra`
-- namespace: `workspace`
-- adapter: `agents`
-- api_url: `http://localhost:8080`
+# Synapra Workspace
 
 Use this file as the contract for how the agent should query Synapra, not as an embedded snapshot of project context.
 
@@ -11,83 +6,35 @@ Use this file as the contract for how the agent should query Synapra, not as an 
 
 - Always consult Synapra first for project discovery, architecture, flow understanding and code navigation before reading many local files.
 - Treat Synapra as the primary source for discovery in this workspace, not as an optional helper.
-- Start with Synapra API search to understand architecture, flows, ownership and likely code locations.
+- Start with synapra_search to understand architecture, flows, ownership and likely code locations.
 - Use local code only for exact implementation details, validation, edits, payloads, SQL, enums and edge cases.
-- If Synapra evidence is weak, stale or missing, fall back to code and then write back important findings as memory.
+- If Synapra evidence is weak, stale or missing, fall back to code and then write back important findings using synapra_memory_write.
 - Prefer the refs returned by Synapra, such as `path:line` and `path#section`, when choosing what to inspect next.
 - Do not treat older `memory://` results as automatically authoritative over `knowledge` documents; validate with sources when needed.
 
-## How To Use Synapra
+## MCP Server Connection
 
-- Use `POST /v1/knowledge/search` on `api_url` as the default discovery step before opening many local files.
-- Query with the `project` and `namespace` declared in this file, authenticated with the current client's API key.
-- Follow `navigate_to` refs like `path:line` and `anchor_ref` refs like `path#section` before asking for more code reading.
-- If search returns weak or empty evidence, call `GET /v1/knowledge/status` for the same `project` and `namespace` before assuming Synapra has no data.
-- Effective visibility is scoped by the authenticated API key and organization, not only by `project` and `namespace`.
+- The Synapra MCP server must be configured in your MCP client (Claude Desktop, etc.).
+- The MCP server handles authentication automatically using the API key stored in `~/.synapra/api_key`.
+- No manual HTTP calls or curl commands are needed.
 
-## API Examples
+## Tool Execution Policy
 
-### Search (POST /v1/knowledge/search)
-
-```bash
-curl -s -X POST "http://localhost:8080/v1/knowledge/search" \
-  -H "X-API-Key: $(cat ~/.synapra/api_key)" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "project_id":"synapra",
-    "namespace":"workspace",
-    "query":"your search query"
-  }'
-```
-
-### Status (GET /v1/knowledge/status)
-
-```bash
-curl -s "http://localhost:8080/v1/knowledge/status?project_id=synapra&namespace=workspace" \
-  -H "X-API-Key: $(cat ~/.synapra/api_key)"
-```
-
-### Sync (POST /v1/knowledge/sync)
-
-```bash
-curl -s -X POST "http://localhost:8080/v1/knowledge/sync" \
-  -H "X-API-Key: $(cat ~/.synapra/api_key)" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "project_id":"synapra",
-    "namespace":"workspace",
-    "files":[
-      {
-        "source_path":"filename.md",
-        "content":"# Markdown content here"
-      }
-    ]
-  }'
-```
-
-## Synapra API Key
-
-- All requests to the Synapra API must be authenticated with an API key using the `X-API-Key` header or an `Authorization: Bearer` token.
-- Read the API key from `~/.synapra/api_key`
-
-## Endpoint Execution Policy
-
-- Treat the endpoint calls in this file as required workflow steps, not optional suggestions.
-- Use `POST /v1/knowledge/search` for discovery, `GET /v1/knowledge/status` for indexing verification, and `POST /v1/knowledge/sync` for durable write-back.
-- If a task produces durable findings from workspace investigation, not only file edits, `POST /v1/knowledge/sync` is still required before the final response.
-- This file defines what Synapra API calls must be made; it does not grant shell or network permissions inside the execution sandbox.
-- If the environment requires approval for `curl` or similar commands, obtain that approval and then execute the required Synapra endpoint call rather than skipping it.
+- Treat the MCP tool calls in this file as required workflow steps, not optional suggestions.
+- Use `synapra_search` for discovery, `synapra_status` for indexing verification, and `synapra_sync` for durable write-back.
+- If a task produces durable findings from workspace investigation, not only file edits, `synapra_sync` is still required before the final response.
+- Start file watcher with `synapra_watch_start` at the beginning of a session if you will be making changes.
+- Stop file watcher with `synapra_watch_stop` at the end of a session.
 
 ## Required Write-Back
 
-- If this session produced durable findings, code changes, validated behavior changes, commits, or debugging conclusions, you must send a concise summary to `POST /v1/knowledge/sync` before your final response.
-- Do not treat `knowledge/sync` as optional when durable knowledge was produced.
-- If you made more changes after the last `knowledge/sync`, send another `knowledge/sync` before finishing.
-- A task with durable changes is not complete until `knowledge/sync` has been executed successfully.
+- If this session produced durable findings, code changes, validated behavior changes, commits, or debugging conclusions, you must use `synapra_sync` or `synapra_memory_write` before your final response.
+- Do not treat memory write-back as optional when durable knowledge was produced.
+- If you made more changes after the last sync, send another sync before finishing.
+- A task with durable changes is not complete until sync has been executed successfully.
 
 ## Agent Acknowledgment
 
 - By starting a session in this workspace, you acknowledge that you have read and understood this file.
 - You confirm that you will follow the rules defined in this document, including the required write-back to Synapra.
 - If you cannot or will not follow these rules, you must inform the user before proceeding with any task.
-

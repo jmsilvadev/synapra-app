@@ -78,6 +78,8 @@ const RepositoriesPage: React.FC = () => {
   const [openSyncDialog, setOpenSyncDialog] = useState(false);
   const [selectedGithubRepo, setSelectedGithubRepo] = useState<GitHubRepository | null>(null);
   const [editingRepository, setEditingRepository] = useState<Repository | null>(null);
+  const [deleteRepositoryId, setDeleteRepositoryId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [syncForm, setSyncForm] = useState({
     project_id: "",
     namespace_id: "",
@@ -288,12 +290,16 @@ const RepositoriesPage: React.FC = () => {
 
   const handleRemoveRepository = async (repoId: string) => {
     if (!currentOrganizationId) return;
+    setDeleting(true);
     try {
       await deleteRepository(currentOrganizationId, repoId);
       setRepositories(repositories.filter((r) => r.id !== repoId));
       setSuccess(t("repositories.removed"));
+      setDeleteRepositoryId(null);
     } catch (err) {
       setError(extractErrorMessage(err, t("repositories.remove_error")));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -426,7 +432,7 @@ const RepositoriesPage: React.FC = () => {
                                 </IconButton>
                               </Tooltip>
                              <Tooltip title={t("common.delete")}>
-                               <IconButton size="small" onClick={() => handleRemoveRepository(repo.id)}>
+                               <IconButton size="small" onClick={() => setDeleteRepositoryId(repo.id)} disabled={deleting}>
                                  <DeleteIcon fontSize="small" />
                                </IconButton>
                              </Tooltip>
@@ -563,6 +569,31 @@ const RepositoriesPage: React.FC = () => {
             disabled={syncing || !syncForm.project_id || !syncForm.namespace_id}
           >
             {syncing ? <CircularProgress size={24} /> : editingRepository ? t("repositories.resync") : t("repositories.sync")}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!deleteRepositoryId} onClose={() => setDeleteRepositoryId(null)}>
+        <DialogTitle>{t("repositories.delete_confirm_title")}</DialogTitle>
+        <DialogContent>
+          <Typography>
+            {t("repositories.delete_confirm_desc", {
+              name: repositories.find((repo) => repo.id === deleteRepositoryId)?.full_name,
+            })}
+          </Typography>
+          <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+            {t("repositories.delete_confirm_warning")}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteRepositoryId(null)}>{t("common.cancel")}</Button>
+          <Button
+            onClick={() => deleteRepositoryId && handleRemoveRepository(deleteRepositoryId)}
+            variant="contained"
+            color="error"
+            disabled={deleting}
+          >
+            {t("common.delete")}
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { Box, Typography, Button, TextField, Alert, CircularProgress, Divider } from "@mui/material";
-import { ContentCopy as CopyIcon, Check as CheckIcon, Google as GoogleIcon } from "@mui/icons-material";
+import React, { useState, useEffect, useRef } from "react";
+import { Box, Typography, Button, Alert, CircularProgress, Divider } from "@mui/material";
+import { Google as GoogleIcon } from "@mui/icons-material";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "../service/firebase";
@@ -12,23 +12,17 @@ const AuthCliPage: React.FC = () => {
   const navigate = useNavigate();
   const [sessionToken, setSessionToken] = useState<string | null>(localStorage.getItem("adminAuthToken"));
   const [organizationId, setOrganizationId] = useState<string | null>(null);
-  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const sessionId = searchParams.get("session");
+  const generateCalledRef = useRef(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("adminAuthToken");
-    if (token) {
-      setSessionToken(token);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (sessionToken && sessionId) {
-      generateApiKey();
+    if (sessionToken && sessionId && !generateCalledRef.current) {
+      generateCalledRef.current = true;
+      void generateApiKey();
     }
   }, [sessionToken, sessionId]);
 
@@ -106,20 +100,12 @@ const AuthCliPage: React.FC = () => {
         throw new Error(errorMessage);
       }
 
-      const data = JSON.parse(responseText);
-      setApiKey(data.api_key);
+      JSON.parse(responseText);
+      setDone(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate API key");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleCopy = () => {
-    if (apiKey) {
-      navigator.clipboard.writeText(apiKey);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -170,7 +156,7 @@ const AuthCliPage: React.FC = () => {
           </Alert>
         )}
 
-        {!sessionToken && !apiKey && (
+        {!sessionToken && !done && (
           <>
             <Button
               variant="contained"
@@ -203,33 +189,11 @@ const AuthCliPage: React.FC = () => {
           </Box>
         )}
 
-        {apiKey && !loading && (
+        {done && !loading && (
           <>
             <Alert severity="success" sx={{ mb: 3 }}>
               Authentication successful! Your API key is ready. You can close this window.
             </Alert>
-
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-              Your API Key
-            </Typography>
-
-            <TextField
-              fullWidth
-              value={apiKey}
-              InputProps={{
-                readOnly: true,
-                sx: { fontFamily: "monospace", fontSize: "0.85rem" },
-              }}
-              sx={{ mb: 2 }}
-            />
-
-            <Button
-              variant="outlined"
-              startIcon={copied ? <CheckIcon /> : <CopyIcon />}
-              onClick={handleCopy}
-            >
-              {copied ? "Copied!" : "Copy"}
-            </Button>
 
             {sessionId && (
               <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: "block" }}>

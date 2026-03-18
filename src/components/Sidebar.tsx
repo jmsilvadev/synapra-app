@@ -23,6 +23,8 @@ import {
   PlayArrow,
   Download as DownloadIcon,
   People as PeopleIcon,
+  AutoAwesome,
+  Terminal,
 } from "@mui/icons-material";
 import { Link, useLocation } from "react-router-dom";
 import { useI18n } from "../i18n";
@@ -51,6 +53,8 @@ const Sidebar: React.FC<SidebarProps> = ({ expanded, setExpanded }) => {
     { text: t("sidebar.projects", { defaultValue: "Projects" }), icon: <Folder />, path: "/projects" },
     { text: t("sidebar.namespaces", { defaultValue: "Namespaces" }), icon: <Storage />, path: "/namespaces" },
     { text: t("sidebar.repositories"), icon: <GitHub />, path: "/repositories" },
+    { text: t("sidebar.skills", { defaultValue: "Skills" }), icon: <AutoAwesome />, path: "/skills" },
+    { text: t("sidebar.commands", { defaultValue: "Commands" }), icon: <Terminal />, path: "/commands" },
     { text: t("sidebar.rules"), icon: <Policy />, path: "/rules-policies" },
     { text: t("sidebar.members", { defaultValue: "Members" }), icon: <PeopleIcon />, path: "/members" },
     { text: t("sidebar.api"), icon: <Api />, path: "/api" },
@@ -59,7 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({ expanded, setExpanded }) => {
   ];
 
   const visibleMenuItems = isViewer
-    ? menuItems.filter((item) => ["/knowledge", "/getting-started", "/downloads"].includes(item.path))
+    ? menuItems.filter((item) => ["/knowledge", "/getting-started", "/downloads", "/api"].includes(item.path))
     : menuItems;
 
   return (

@@ -148,6 +148,41 @@ export type OrganizationRules = {
   rules_markdown: string;
 };
 
+export type SkillDefinition = {
+  id: string;
+  key: string;
+  scope: string;
+  organization_id: string;
+  project_id: string;
+  name: string;
+  aliases: string[];
+  description: string;
+  instructions: string;    // primary field
+  pipeline: string[];
+  prompt_template: string; // backward compat
+  tools: string[];
+  context_strategy: string;
+  config: Record<string, unknown>;
+  enabled: boolean;
+  is_system: boolean;
+  usage_count: number;
+  avg_tokens: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CommandDefinition = {
+  id: string;
+  organization_id: string;
+  slug: string;    // friendly alias; same as trigger
+  trigger: string;
+  skill_id: string;
+  description: string;
+  usage_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ProjectRules = {
   organization_id: string;
   project_uuid: string;
@@ -279,6 +314,10 @@ export type ApiKey = {
   preview?: string;
   created_at?: string;
   revoked_at?: string;
+  last_used_at?: string;
+  user_id?: string;
+  user_email?: string;
+  device_info?: string;
 };
 
 export type ApiKeyCreateResponse = ApiKey & {

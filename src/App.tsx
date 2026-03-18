@@ -24,6 +24,8 @@ import GettingStartedPage from "./pages/GettingStartedPage";
 import DownloadsPage from "./pages/DownloadsPage";
 import OrganizationKnowledgePage from "./pages/OrganizationKnowledgePage";
 import MembersPage from "./pages/MembersPage";
+import SkillsPage from "./pages/SkillsPage";
+import CommandsPage from "./pages/CommandsPage";
 
 const theme = createTheme({
   palette: {
@@ -203,10 +205,12 @@ const AppRoutes: React.FC = () => {
         {!isViewer && <Route path="projects" element={<ProjectsPage />} />}
         {!isViewer && <Route path="namespaces" element={<NamespacesPage />} />}
         {!isViewer && <Route path="rules-policies" element={<RulesPoliciesPage />} />}
-        {!isViewer && <Route path="api" element={<ApiIntegrationsPage />} />}
+        <Route path="api" element={<ApiIntegrationsPage />} />
         {!isViewer && <Route path="logs" element={<LogsPage />} />}
         {!isViewer && <Route path="settings" element={<SettingsPage />} />}
         {!isViewer && <Route path="repositories" element={<RepositoriesPage />} />}
+        {!isViewer && <Route path="skills" element={<SkillsPage />} />}
+        {!isViewer && <Route path="commands" element={<CommandsPage />} />}
         <Route path="knowledge" element={<OrganizationKnowledgePage />} />
         <Route path="getting-started" element={<GettingStartedPage />} />
         <Route path="downloads" element={<DownloadsPage />} />

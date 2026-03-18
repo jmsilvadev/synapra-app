@@ -29,6 +29,8 @@ import type {
   RepositoryRuleSummary,
   WatchSettings,
   UpdateWatchSettingsRequest,
+  SkillDefinition,
+  CommandDefinition,
 } from "../types/admin";
 
 export type DashboardResponse = {
@@ -121,6 +123,13 @@ export async function createClientApiKey(clientId: string, label: string) {
 
 export async function revokeClientApiKey(clientId: string, keyId: string) {
   await apiClient.delete(`/v1/console/clients/${clientId}/api-keys/${keyId}`);
+}
+
+export async function getDeviceRegistrations(clientId: string) {
+  const response = await apiClient.get<{ devices: ApiKey[] }>(
+    `/v1/console/clients/${clientId}/devices`
+  );
+  return asArray(response.data?.devices);
 }
 
 export async function getAuditLogs(clientId: string, action?: string, startDate?: string, endDate?: string, limit = 20, offset = 0) {
@@ -545,4 +554,69 @@ export async function createInvitation(
 export async function resendInvitation(invitationId: string) {
   const response = await apiClient.post<any>(`/v1/console/invitations/${invitationId}/resend`);
   return response.data;
+}
+
+export type CreateSkillPayload = {
+  name: string;
+  instructions: string;    // primary field
+  prompt_template?: string; // backward compat (fallback)
+  description?: string;
+  key?: string;
+  scope?: "org" | "project";
+  project_id?: string;
+};
+
+export type CreateCommandPayload = {
+  slug: string;     // friendly name (without leading slash)
+  trigger?: string; // backward compat; derived from slug if omitted
+  skill_id: string;
+  description?: string;
+};
+
+export async function listSkills() {
+  const response = await apiClient.get<{ skills: SkillDefinition[] }>("/v1/skills");
+  return asArray(response.data?.skills);
+}
+
+export async function createSkill(payload: CreateSkillPayload) {
+  const instructions = payload.instructions || payload.prompt_template || "";
+  const response = await apiClient.post<SkillDefinition>("/v1/skills", {
+    name: payload.name,
+    instructions,
+    prompt_template: instructions,
+    description: payload.description || instructions,
+    key: payload.key || "",
+    scope: payload.scope || "org",
+    project_id: payload.project_id || "",
+    aliases: [],
+    pipeline: [],
+    tools: [],
+    context_strategy: "compressed",
+    config: {},
+    enabled: true,
+  });
+  return response.data;
+}
+
+export async function deleteSkill(skillId: string) {
+  await apiClient.delete(`/v1/skills/${skillId}`);
+}
+
+export async function listCommands() {
+  const response = await apiClient.get<{ commands: CommandDefinition[] }>("/v1/commands");
+  return asArray(response.data?.commands);
+}
+
+export async function createCommand(payload: CreateCommandPayload) {
+  const trigger = payload.trigger || (payload.slug.startsWith("/") ? payload.slug : `/${payload.slug}`);
+  const response = await apiClient.post<CommandDefinition>("/v1/commands", {
+    trigger,
+    skill_id: payload.skill_id,
+    description: payload.description || "",
+  });
+  return response.data;
+}
+
+export async function deleteCommand(commandId: string) {
+  await apiClient.delete(`/v1/commands/${commandId}`);
 }
