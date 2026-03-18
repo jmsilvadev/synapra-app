@@ -432,7 +432,7 @@ const RepositoriesPage: React.FC = () => {
                                 </IconButton>
                               </Tooltip>
                              <Tooltip title={t("common.delete")}>
-                               <IconButton size="small" onClick={() => setDeleteRepositoryId(repo.id)} disabled={deleting}>
+                               <IconButton size="small" color="error" onClick={() => setDeleteRepositoryId(repo.id)} disabled={deleting}>
                                  <DeleteIcon fontSize="small" />
                                </IconButton>
                              </Tooltip>
@@ -591,6 +591,7 @@ const RepositoriesPage: React.FC = () => {
             onClick={() => deleteRepositoryId && handleRemoveRepository(deleteRepositoryId)}
             variant="contained"
             color="error"
+            sx={{ color: "common.white" }}
             disabled={deleting}
           >
             {t("common.delete")}

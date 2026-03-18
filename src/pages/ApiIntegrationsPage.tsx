@@ -216,7 +216,7 @@ const ApiIntegrationsPage: React.FC = () => {
                           onClick={() => setDeleteDialog({ keyId: key.id, keyLabel: key.label })}
                           disabled={Boolean(key.revoked_at) || deletingKeyId === key.id}
                         >
-                          {deletingKeyId === key.id ? <CircularProgress size={24} /> : <DeleteOutlineIcon />}
+                          {deletingKeyId === key.id ? <CircularProgress size={24} /> : <DeleteOutlineIcon color="error" />}
                         </IconButton>
                       </Tooltip>
                     </Stack>
@@ -297,6 +297,7 @@ const ApiIntegrationsPage: React.FC = () => {
           <Button
             color="error"
             variant="contained"
+            sx={{ color: "common.white" }}
             onClick={() => {
               if (!deleteDialog) {
                 return;

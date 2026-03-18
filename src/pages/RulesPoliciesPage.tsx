@@ -608,7 +608,7 @@ const RulesPoliciesPage: React.FC = () => {
                                 </IconButton>
                               </Tooltip>
                               <Tooltip title={t("common.delete")}>
-                                <IconButton size="small" onClick={() => setDeleteDialogProject(project)} disabled={deletingKey === project.project_uuid}>
+                                <IconButton size="small" color="error" onClick={() => setDeleteDialogProject(project)} disabled={deletingKey === project.project_uuid}>
                                   <DeleteIcon fontSize="small" />
                                 </IconButton>
                               </Tooltip>
@@ -687,7 +687,7 @@ const RulesPoliciesPage: React.FC = () => {
                                 </IconButton>
                               </Tooltip>
                               <Tooltip title={t("common.delete")}>
-                                <IconButton size="small" onClick={() => setDeleteDialogNamespace(namespace)} disabled={deletingKey === namespace.namespace_uuid}>
+                                <IconButton size="small" color="error" onClick={() => setDeleteDialogNamespace(namespace)} disabled={deletingKey === namespace.namespace_uuid}>
                                   <DeleteIcon fontSize="small" />
                                 </IconButton>
                               </Tooltip>
@@ -774,7 +774,7 @@ const RulesPoliciesPage: React.FC = () => {
                                 </IconButton>
                               </Tooltip>
                               <Tooltip title={t("common.delete")}>
-                                <IconButton size="small" onClick={() => setDeleteDialogRepository(repo)} disabled={deletingKey === repo.repository_uuid}>
+                                <IconButton size="small" color="error" onClick={() => setDeleteDialogRepository(repo)} disabled={deletingKey === repo.repository_uuid}>
                                   <DeleteIcon fontSize="small" />
                                 </IconButton>
                               </Tooltip>
@@ -842,6 +842,7 @@ const RulesPoliciesPage: React.FC = () => {
           <Button
             color="error"
             variant="contained"
+            sx={{ color: "common.white" }}
             disabled={!deleteDialogProject || Boolean(deletingKey)}
             onClick={() => {
               if (!deleteDialogProject) return;
@@ -864,6 +865,7 @@ const RulesPoliciesPage: React.FC = () => {
           <Button
             color="error"
             variant="contained"
+            sx={{ color: "common.white" }}
             disabled={!deleteDialogNamespace || Boolean(deletingKey)}
             onClick={() => {
               if (!deleteDialogNamespace) return;
@@ -886,6 +888,7 @@ const RulesPoliciesPage: React.FC = () => {
           <Button
             color="error"
             variant="contained"
+            sx={{ color: "common.white" }}
             disabled={!deleteDialogRepository || Boolean(deletingKey)}
             onClick={() => {
               if (!deleteDialogRepository) return;

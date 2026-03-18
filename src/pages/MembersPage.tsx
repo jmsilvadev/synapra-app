@@ -28,6 +28,8 @@ import {
   Snackbar,
   Tooltip,
   Badge,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import {
   Person as PersonIcon,
@@ -44,6 +46,7 @@ import {
   listUsers,
   createInvitation,
   resendInvitation,
+  updateUserRole,
 } from "../services/adminService";
 import { extractErrorMessage } from "../services/apiClient";
 import type { Invitation, User } from "../types/admin";
@@ -173,6 +176,25 @@ const MembersPage: React.FC = () => {
     }
   };
 
+  const handleToggleUserActive = async (targetUser: User, nextActive: boolean) => {
+    if (!currentOrganizationId) return;
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const updated = await updateUserRole(currentOrganizationId, targetUser.id, {
+        role: targetUser.role || "user",
+        active: nextActive,
+      });
+      setUsers((prev) => prev.map((u) => (u.id === targetUser.id ? { ...u, ...updated } : u)));
+      setSuccess(`${targetUser.email} ${nextActive ? "activated" : "deactivated"}`);
+    } catch (err) {
+      setError(extractErrorMessage(err, "Failed to update member status"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
@@ -234,6 +256,7 @@ const MembersPage: React.FC = () => {
                       <TableCell>Name</TableCell>
                       <TableCell>Email</TableCell>
                       <TableCell>Role</TableCell>
+                      <TableCell>Status</TableCell>
                       <TableCell>Joined</TableCell>
                     </TableRow>
                   </TableHead>
@@ -247,6 +270,20 @@ const MembersPage: React.FC = () => {
                             label={roleLabel(u.role)}
                             color={getRoleColor(u.role)}
                             size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={!!u.active}
+                                disabled={saving || u.id === user?.id}
+                                onChange={(_, checked) => {
+                                  void handleToggleUserActive(u, checked);
+                                }}
+                              />
+                            }
+                            label={u.active ? "Active" : "Inactive"}
                           />
                         </TableCell>
                         <TableCell>{formatDate(locale, u.created_at)}</TableCell>

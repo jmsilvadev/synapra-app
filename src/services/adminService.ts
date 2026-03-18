@@ -546,6 +546,18 @@ export async function listUsers(clientId: string) {
   return asArray(response.data?.users);
 }
 
+export async function updateUserRole(
+  clientId: string,
+  userId: string,
+  payload: { role: string; active: boolean }
+) {
+  const response = await apiClient.put<any>(
+    `/v1/console/clients/${clientId}/users/${userId}`,
+    payload
+  );
+  return response.data;
+}
+
 export async function listInvitations(clientId: string) {
   const response = await apiClient.get<{ invitations: any[] }>(`/v1/console/clients/${clientId}/invitations`);
   return asArray(response.data?.invitations);

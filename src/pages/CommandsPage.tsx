@@ -261,7 +261,7 @@ const CommandsPage: React.FC = () => {
           <Button onClick={handleCloseDelete} disabled={deleting}>
             {t("common.cancel", { defaultValue: "Cancel" })}
           </Button>
-          <Button variant="contained" color="error" onClick={handleConfirmDelete} disabled={deleting}>
+          <Button variant="contained" color="error" sx={{ color: "common.white" }} onClick={handleConfirmDelete} disabled={deleting}>
             {deleting
               ? t("commands.delete.deleting", { defaultValue: "Deleting..." })
               : t("commands.delete.confirm_button", { defaultValue: "Delete" })}

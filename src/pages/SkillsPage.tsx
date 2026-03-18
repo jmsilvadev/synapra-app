@@ -326,7 +326,7 @@ const SkillsPage: React.FC = () => {
           <Button onClick={handleCloseDelete} disabled={deleting}>
             {t("common.cancel", { defaultValue: "Cancel" })}
           </Button>
-          <Button variant="contained" color="error" onClick={handleConfirmDelete} disabled={deleting}>
+          <Button variant="contained" color="error" sx={{ color: "common.white" }} onClick={handleConfirmDelete} disabled={deleting}>
             {deleting
               ? t("skills.delete.deleting", { defaultValue: "Deleting..." })
               : t("skills.delete.confirm_button", { defaultValue: "Delete" })}
