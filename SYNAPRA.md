@@ -1,8 +1,11 @@
 # Synapra Workspace
 
-Use this file as the contract for how the agent should query Synapra, not as an embedded snapshot of project context.
+## Project
+- **ID**: 625e87eb-598a-5e9e-b1dd-faf1f70033f5
+- **Namespace**: 88951f8d-3895-49e8-b681-106034d61fa4
 
-## Operating Rules
+## Usage
+This repository is synced with Synapra for knowledge discovery.
 
 - Always consult Synapra first for project discovery, architecture, flow understanding and code navigation before reading many local files.
 - Treat Synapra as the primary source for discovery in this workspace, not as an optional helper.
