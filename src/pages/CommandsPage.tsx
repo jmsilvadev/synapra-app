@@ -163,7 +163,7 @@ const CommandsPage: React.FC = () => {
                 label={t("commands.form.slug", { defaultValue: "Command Slug" })}
                 value={slug}
                 onChange={(event) => setSlug(event.target.value)}
-                placeholder="ex: synapra_explain or /synapra_explain"
+                placeholder="ex: elastra_explain or /elastra_explain"
                 fullWidth
               />
               <FormControl fullWidth>

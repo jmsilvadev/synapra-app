@@ -385,7 +385,7 @@ const HowItWorksPage: React.FC = () => {
                 >
                   <Stack spacing={1.75}>
                     <Typography variant="overline" sx={{ color: "primary.main", fontWeight: 800, letterSpacing: 1.2 }}>
-                      SYNAPRA RUNTIME
+                      ELASTRA RUNTIME
                     </Typography>
                     <Typography variant="h5" sx={{ fontWeight: 850 }}>
                       The control plane between code and agent execution

@@ -1,6 +1,7 @@
 import axios from "axios";
 
 export const apiBaseURL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+export const siteURL = process.env.REACT_APP_SITE_URL || "https://elastra.ai";
 
 export const apiClient = axios.create({
   baseURL: apiBaseURL,

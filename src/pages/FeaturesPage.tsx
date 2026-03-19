@@ -210,7 +210,7 @@ const FeaturesPage: React.FC = () => {
       description:
         "Bootstrap new workspaces, refresh effective rules, install MCP integrations and materialize agent files from the CLI in minutes.",
       bullets: [
-        "synapra init and update",
+        "elastra init and update",
         "rules materialize",
         "MCP install for supported clients",
       ],

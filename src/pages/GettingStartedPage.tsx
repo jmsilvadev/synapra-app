@@ -15,6 +15,8 @@ import {
   CheckCircle as CheckIcon,
 } from "@mui/icons-material";
 import { useI18n } from "../i18n";
+import CommandBlock from "../components/CommandBlock";
+import { apiBaseURL } from "../services/apiClient";
 
 const GettingStartedPage: React.FC = () => {
   const { t } = useI18n();
@@ -47,10 +49,11 @@ const GettingStartedPage: React.FC = () => {
               <Chip label={t("getting_started.install.go_downloads")} color="primary" clickable />
             </Link>
           </Box>
+          <Typography variant="subtitle1" sx={{ mt: 3, mb: 1, fontWeight: "medium" }}>
+            Verify installation
+          </Typography>
 
-          <Alert severity="info" sx={{ mb: 3 }}>
-            {t("getting_started.install.path_info")}
-          </Alert>
+          <CommandBlock lines={["elastra version", "elastra-mcp version"]} sx={{ mb: 3 }} />
 
           <Typography variant="subtitle1" sx={{ mt: 3, mb: 2, fontWeight: "medium" }}>
             {t("getting_started.cli.usage")}
@@ -60,26 +63,23 @@ const GettingStartedPage: React.FC = () => {
             {t("getting_started.cli.auth_desc")}
           </Typography>
 
-          <Box sx={{ bgcolor: "action.hover", p: 2, borderRadius: 1, fontFamily: "monospace", fontSize: "0.875rem", mb: 3 }}>
-            <Box sx={{ color: "primary.main" }}>synapra auth login</Box>
-          </Box>
+          <CommandBlock lines={["elastra auth login"]} sx={{ mb: 3 }} />
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {t("getting_started.cli.init_desc")}
           </Typography>
 
-          <Box sx={{ bgcolor: "action.hover", p: 2, borderRadius: 1, fontFamily: "monospace", fontSize: "0.875rem", mb: 2 }}>
-            <Box sx={{ color: "primary.main" }}>synapra init</Box>
-          </Box>
+          <CommandBlock lines={["elastra init"]} sx={{ mb: 2 }} />
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             {t("getting_started.cli.init_creates")}
           </Typography>
 
           <Box component="ul" sx={{ mt: 1, pl: 3, mb: 2 }}>
-            <li><Typography variant="body2" sx={{ fontFamily: "monospace" }}>SYNAPRA.md</Typography> - {t("getting_started.cli.synapra_md_desc")}</li>
-            <li><Typography variant="body2" sx={{ fontFamily: "monospace" }}>SYNAPRA_ARCHITECTURE.md</Typography> - {t("getting_started.cli.arch_md_desc")}</li>
-            <li><Typography variant="body2">.cursor/mcp.json</Typography> - {t("getting_started.cli.mcp_config_desc")}</li>
+            <li><Typography variant="body2" sx={{ fontFamily: "monospace" }}>ELASTRA.md</Typography> - {t("getting_started.cli.project_md_desc")}</li>
+            <li><Typography variant="body2" sx={{ fontFamily: "monospace" }}>AGENTS.md</Typography> - {t("getting_started.cli.arch_md_desc")}</li>
+            <li><Typography variant="body2" sx={{ fontFamily: "monospace" }}>.elastra/config.yaml</Typography> - project and namespace configuration</li>
+            <li><Typography variant="body2" sx={{ fontFamily: "monospace" }}>.elastra/watch.yaml</Typography> - local watch and sync settings</li>
           </Box>
         </CardContent>
       </Card>
@@ -115,9 +115,7 @@ const GettingStartedPage: React.FC = () => {
             {t("getting_started.mcp.install_title")}
           </Typography>
 
-          <Box sx={{ bgcolor: "action.hover", p: 2, borderRadius: 1, fontFamily: "monospace", fontSize: "0.875rem", mb: 2 }}>
-            <Box sx={{ color: "primary.main" }}>synapra mcp install</Box>
-          </Box>
+          <CommandBlock lines={["elastra mcp install"]} sx={{ mb: 2 }} />
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {t("getting_started.mcp.install_detects")}
@@ -129,6 +127,7 @@ const GettingStartedPage: React.FC = () => {
             <li><Typography variant="body2">Windsurf</Typography></li>
             <li><Typography variant="body2">VS Code Copilot</Typography></li>
             <li><Typography variant="body2">OpenCode</Typography></li>
+            <li><Typography variant="body2">Codex</Typography></li>
           </Box>
 
           <Typography variant="subtitle1" sx={{ mt: 3, mb: 1, fontWeight: "medium" }}>
@@ -142,16 +141,34 @@ const GettingStartedPage: React.FC = () => {
           <Box sx={{ bgcolor: "action.hover", p: 2, borderRadius: 1, fontFamily: "monospace", fontSize: "0.875rem", overflow: "auto" }}>
             <pre style={{ margin: 0 }}>{`{
   "mcpServers": {
-    "synapra": {
-      "command": "synapra-mcp",
-      "args": [],
+    "elastra": {
+      "type": "stdio",
+      "command": "elastra",
+      "args": ["mcp", "serve"],
       "env": {
-        "SYNAPRA_API_URL": "https://api.elastra.ai"
+        "ELASTRA_API_URL": "${apiBaseURL}"
       }
     }
   }
 }`}</pre>
           </Box>
+        </CardContent>
+      </Card>
+
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+            <TerminalIcon color="primary" />
+            <Typography variant="h6">
+              Cleanup
+            </Typography>
+          </Box>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Use these commands to remove Elastra files generated inside the current repository.
+          </Typography>
+
+          <CommandBlock lines={["elastra mcp remove", "elastra rules remove", "elastra remove generated"]} />
         </CardContent>
       </Card>
 

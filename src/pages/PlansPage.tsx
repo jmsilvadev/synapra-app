@@ -53,7 +53,7 @@ function parseIntMeta(meta: Record<string, string>, keys: string[], fallback: nu
 }
 
 function buildSCUCostModelFromStripePrices(prices: any[]): SCUCostModel {
-  const base = prices.find((p) => p?.Product?.Metadata?.app === "synapra") || prices[0];
+  const base = prices.find((p) => p?.Product?.Metadata?.app === "elastra") || prices[0];
   const meta = (base?.Product?.Metadata || {}) as Record<string, string>;
   return {
     search: parseIntMeta(meta, ["scu_cost_search", "search_scu_cost"], fallbackCosts.search),

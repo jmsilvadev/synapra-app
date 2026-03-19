@@ -155,7 +155,7 @@ const ApiIntegrationsPage: React.FC = () => {
           <Stack spacing={1}>
             <Typography variant="h6">How to Generate API Keys</Typography>
             <Typography color="text.secondary">
-              API keys are generated on your machine when you run the <Typography component="code" sx={{ fontFamily: "monospace", backgroundColor: "action.hover", px: 1, py: 0.5 }}>synapra auth login</Typography> command in your terminal. This page displays all your active API keys and allows you to manage their access.
+              API keys are generated on your machine when you run the <Typography component="code" sx={{ fontFamily: "monospace", backgroundColor: "action.hover", px: 1, py: 0.5 }}>elastra auth login</Typography> command in your terminal. This page displays all your active API keys and allows you to manage their access.
             </Typography>
           </Stack>
         </CardContent>
@@ -173,7 +173,7 @@ const ApiIntegrationsPage: React.FC = () => {
                 <KeyIcon sx={{ fontSize: 64, color: "text.disabled", mb: 2 }} />
                 <Typography variant="h6" gutterBottom>No API Keys yet</Typography>
                 <Typography color="text.secondary" sx={{ mb: 3 }}>
-                  Generate your first API key by running <Typography component="code" sx={{ fontFamily: "monospace", backgroundColor: "action.hover", px: 1, py: 0.5 }}>synapra auth login</Typography> on your machine.
+                  Generate your first API key by running <Typography component="code" sx={{ fontFamily: "monospace", backgroundColor: "action.hover", px: 1, py: 0.5 }}>elastra auth login</Typography> on your machine.
                 </Typography>
               </CardContent>
             </Card>
