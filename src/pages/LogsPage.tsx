@@ -12,13 +12,31 @@ type ActionOption = {
   label: string;
 };
 
+type LogTypeOption = {
+  value: string;
+  label: string;
+};
+
 const DEFAULT_ACTION_OPTION: ActionOption = { value: "", label: "All actions" };
+const DEFAULT_TYPE_OPTION: LogTypeOption = { value: "", label: "All types" };
 
 function formatActionLabel(action: string) {
   return action
     .split(".")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" / ");
+}
+
+function getLogType(action: string) {
+  const [type = ""] = action.split(".");
+  return type;
+}
+
+function formatLogTypeLabel(type: string) {
+  if (!type) {
+    return DEFAULT_TYPE_OPTION.label;
+  }
+  return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
 function parseMetadata(metadata: string): AuditLogMetadata {
@@ -34,6 +52,7 @@ const LogsPage: React.FC = () => {
   const { t } = useI18n();
   const [logs, setLogs] = useState<AuditLogRecord[]>([]);
   const [actionOptions, setActionOptions] = useState<ActionOption[]>([DEFAULT_ACTION_OPTION]);
+  const [typeFilter, setTypeFilter] = useState("");
   const [memberOptions, setMemberOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +62,36 @@ const LogsPage: React.FC = () => {
   const [endDate, setEndDate] = useState("");
   const [limit, setLimit] = useState(20);
   const [offset, setOffset] = useState(0);
+
+  const typeOptions: LogTypeOption[] = [
+    DEFAULT_TYPE_OPTION,
+    ...Array.from(
+      new Set(
+        actionOptions
+          .map((option) => option.value)
+          .filter(Boolean)
+          .map((action) => getLogType(action))
+          .filter(Boolean)
+      )
+    )
+      .sort((left, right) => left.localeCompare(right))
+      .map((type) => ({
+        value: type,
+        label: formatLogTypeLabel(type),
+      })),
+  ];
+
+  const filteredActionOptions = [
+    DEFAULT_ACTION_OPTION,
+    ...actionOptions.filter((option) => option.value && (!typeFilter || getLogType(option.value) === typeFilter)),
+  ];
+
+  const selectedTypeOption =
+    typeOptions.find((option) => option.value === typeFilter) ?? DEFAULT_TYPE_OPTION;
+
+  const selectedActionOption =
+    filteredActionOptions.find((option) => option.value === actionFilter) ??
+    (actionFilter ? { value: actionFilter, label: formatActionLabel(actionFilter) } : DEFAULT_ACTION_OPTION);
 
   const fetchLogs = (newOffset = 0) => {
     if (!currentOrganizationId) return;
@@ -114,18 +163,44 @@ const LogsPage: React.FC = () => {
     <Container>
       <Typography variant="h4" sx={{ mb: 3 }}>{t("logs.title")}</Typography>
       
-      <Stack direction="row" spacing={2} sx={{ mb: 3 }} flexWrap="wrap" useFlexGap>
-        <TextField
-          select
-          label="Action"
-          value={actionFilter}
-          onChange={(e) => setActionFilter(e.target.value)}
-          sx={{ minWidth: 200 }}
-        >
-          {actionOptions.map((opt) => (
-            <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-          ))}
-        </TextField>
+      <Stack direction="row" spacing={2} sx={{ mb: 3, alignItems: "flex-start" }} flexWrap="wrap" useFlexGap>
+        <Autocomplete
+          options={typeOptions}
+          value={selectedTypeOption}
+          onChange={(_, value) => {
+            const nextType = value?.value ?? "";
+            setTypeFilter(nextType);
+            if (actionFilter && nextType && getLogType(actionFilter) !== nextType) {
+              setActionFilter("");
+            }
+          }}
+          getOptionLabel={(option) => option.label}
+          isOptionEqualToValue={(option, value) => option.value === value.value}
+          sx={{ minWidth: 220, flex: "0 1 220px" }}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="Type"
+              placeholder="Select a type"
+            />
+          )}
+        />
+
+        <Autocomplete
+          options={filteredActionOptions}
+          value={selectedActionOption}
+          onChange={(_, value) => setActionFilter(value?.value ?? "")}
+          getOptionLabel={(option) => option.label}
+          isOptionEqualToValue={(option, value) => option.value === value.value}
+          sx={{ minWidth: 420, flex: "1 1 420px" }}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="Action"
+              placeholder="Select an action"
+            />
+          )}
+        />
 
         <Autocomplete
           freeSolo
@@ -133,7 +208,7 @@ const LogsPage: React.FC = () => {
           value={memberFilter}
           onInputChange={(_, value) => setMemberFilter(value)}
           onChange={(_, value) => setMemberFilter(value || "")}
-          sx={{ minWidth: 260 }}
+          sx={{ minWidth: 320, flex: "1 1 320px" }}
           renderInput={(params) => (
             <TextField
               {...params}
@@ -149,7 +224,7 @@ const LogsPage: React.FC = () => {
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
           InputLabelProps={{ shrink: true }}
-          sx={{ minWidth: 150 }}
+          sx={{ minWidth: 180 }}
         />
         
         <TextField
@@ -158,7 +233,7 @@ const LogsPage: React.FC = () => {
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
           InputLabelProps={{ shrink: true }}
-          sx={{ minWidth: 150 }}
+          sx={{ minWidth: 180 }}
         />
         
         <TextField
