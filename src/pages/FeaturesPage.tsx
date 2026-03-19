@@ -34,24 +34,24 @@ const FeaturesPage: React.FC = () => {
   const navigate = useNavigate();
 
   usePageSeo({
-    title: "Elastra Features | AI Agent Control Plane, Rules, Skills, Commands, MCP and Governance",
+    title: "Elastra AI Features | AI Agent Control Plane, Rules, Skills, Commands, MCP and Governance",
     description:
-      "Explore Elastra as the control plane for AI agents: rules and policies, skills and commands, GitHub-aware sync, shared context retrieval, graph and impact analysis, audit logs, billing controls and enterprise governance, with average savings of 40% in agent token usage and 40% in execution time.",
+      "Explore Elastra AI as the control plane for AI agents: rules and policies, skills and commands, GitHub-aware sync, shared context retrieval, graph and impact analysis, audit logs, billing controls and enterprise governance, with average savings of 40% in agent token usage and 40% in execution time.",
     keywords:
-      "Elastra features, AI agent control plane, AI agent platform, agent governance, agent rules and policies, AI skills and commands, GitHub App sync, MCP server, code graph analysis, impact analysis, audit logs for AI agents, repository sync, enterprise AI platform, reduce agent tokens, reduce AI execution time",
+      "Elastra AI features, AI agent control plane, AI agent platform, agent governance, agent rules and policies, AI skills and commands, GitHub App sync, MCP server, code graph analysis, impact analysis, audit logs for AI agents, repository sync, enterprise AI platform, reduce agent tokens, reduce AI execution time",
     path: "/features",
     imagePath: "/elastra_og_image.svg",
     structuredData: [
       {
         "@context": "https://schema.org",
         "@type": "WebPage",
-        name: "Elastra Features",
+        name: "Elastra AI Features",
         description:
-          "Commercial overview of Elastra as the AI agent control plane for engineering teams, including rules, policies, skills, commands, GitHub sync, shared context retrieval, observability, CLI flows and enterprise governance, with average savings of 40% in tokens and 40% in time.",
+          "Commercial overview of Elastra AI as the AI agent control plane for engineering teams, including rules, policies, skills, commands, GitHub sync, shared context retrieval, observability, CLI flows and enterprise governance, with average savings of 40% in tokens and 40% in time.",
         url: `${window.location.origin}/features`,
         isPartOf: {
           "@type": "WebSite",
-          name: "Elastra",
+          name: "Elastra AI",
           url: window.location.origin,
         },
         about: [
@@ -65,11 +65,11 @@ const FeaturesPage: React.FC = () => {
       {
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
-        name: "Elastra",
+        name: "Elastra AI",
         applicationCategory: "DeveloperApplication",
         operatingSystem: "Web, CLI",
         description:
-          "Elastra is the control plane for AI agents in software teams, giving organizations shared context, GitHub-aware sync, rules, policies, skills, commands, graph analysis, auditability and multi-agent MCP connectivity while reducing average token usage and execution time by 40%.",
+          "Elastra AI is the control plane for AI agents in software teams, giving organizations shared context, GitHub-aware sync, rules, policies, skills, commands, graph analysis, auditability and multi-agent MCP connectivity while reducing average token usage and execution time by 40%.",
         featureList: [
           "Rules, policies, skills and commands managed from one platform",
           "GitHub App and webhook repository sync",
@@ -89,26 +89,26 @@ const FeaturesPage: React.FC = () => {
         mainEntity: [
           {
             "@type": "Question",
-            name: "Does Elastra support GitHub repository sync?",
+            name: "Does Elastra AI support GitHub repository sync?",
             acceptedAnswer: {
               "@type": "Answer",
-              text: "Yes. Elastra supports GitHub integration, repository connection, GitHub App installation, webhook-driven sync and automatic repository updates on pull requests and merges.",
+              text: "Yes. Elastra AI supports GitHub integration, repository connection, GitHub App installation, webhook-driven sync and automatic repository updates on pull requests and merges.",
             },
           },
           {
             "@type": "Question",
-            name: "Can Elastra apply rules to different scopes?",
+            name: "Can Elastra AI apply rules to different scopes?",
             acceptedAnswer: {
               "@type": "Answer",
-              text: "Yes. Elastra supports rules for organizations, projects, namespaces, repositories and individual users, and materializes effective rules into agent-specific instruction files.",
+              text: "Yes. Elastra AI supports rules for organizations, projects, namespaces, repositories and individual users, and materializes effective rules into agent-specific instruction files.",
             },
           },
           {
             "@type": "Question",
-            name: "Which AI agents can connect to Elastra?",
+            name: "Which AI agents can connect to Elastra AI?",
             acceptedAnswer: {
               "@type": "Answer",
-              text: "Elastra supports MCP-based integrations for tools such as Cursor, Claude, VS Code Copilot, Windsurf, OpenCode, Codex and custom MCP-compatible clients.",
+              text: "Elastra AI supports MCP-based integrations for tools such as Cursor, Claude, VS Code Copilot, Windsurf, OpenCode, Codex and custom MCP-compatible clients.",
             },
           },
         ],
@@ -253,7 +253,7 @@ const FeaturesPage: React.FC = () => {
     {
       icon: <QueryStatsIcon color="primary" />,
       title: "Built for production control",
-      copy: "From logs and quotas to billing and auditability, Elastra is not just retrieval. It is an operating layer for AI software delivery.",
+      copy: "From logs and quotas to billing and auditability, Elastra AI is not just retrieval. It is an operating layer for AI software delivery.",
     },
   ];
 
@@ -308,10 +308,10 @@ const FeaturesPage: React.FC = () => {
             <Stack spacing={3}>
               <Chip label="Complete Product Capability Map" color="primary" variant="outlined" sx={{ width: "fit-content" }} />
               <Typography variant="h2" sx={{ fontWeight: 900, maxWidth: 980, lineHeight: 1.05 }}>
-                Elastra gives organizations one control plane for AI agents across rules, skills, commands, context and operational control.
+                Elastra AI gives organizations one control plane for AI agents across rules, skills, commands, context and operational control.
               </Typography>
               <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 980 }}>
-                This is not just prompt context. Elastra lets teams govern agent behavior, update rules and policies, create reusable skills and commands, connect GitHub and keep every workflow observable, consistent and cost-aware.
+                This is not just prompt context. Elastra AI lets teams govern agent behavior, update rules and policies, create reusable skills and commands, connect GitHub and keep every workflow observable, consistent and cost-aware.
               </Typography>
               <Box
                 sx={{
@@ -323,7 +323,7 @@ const FeaturesPage: React.FC = () => {
                 }}
               >
                 <Typography sx={{ fontWeight: 700 }}>
-                  Teams using Elastra save an average of <Box component="span" sx={{ color: "primary.main" }}>40% of agent tokens</Box> and <Box component="span" sx={{ color: "primary.main" }}>40% of execution time</Box> by cutting repeated context setup and re-discovery work.
+                  Teams using Elastra AI save an average of <Box component="span" sx={{ color: "primary.main" }}>40% of agent tokens</Box> and <Box component="span" sx={{ color: "primary.main" }}>40% of execution time</Box> by cutting repeated context setup and re-discovery work.
                 </Typography>
               </Box>
               <Stack direction={{ xs: "column", md: "row" }} spacing={1.25} useFlexGap flexWrap="wrap">
@@ -398,7 +398,7 @@ const FeaturesPage: React.FC = () => {
               Core platform foundations
             </Typography>
             <Typography color="text.secondary" sx={{ maxWidth: 980, mb: 3.5 }}>
-              Elastra centralizes the control surfaces organizations actually need in real software delivery: shared context, code structure, memory, enforceable rules, reusable workflows and policy-aware execution.
+              Elastra AI centralizes the control surfaces organizations actually need in real software delivery: shared context, code structure, memory, enforceable rules, reusable workflows and policy-aware execution.
             </Typography>
             <Stack spacing={2}>
               {foundation.map((item) => (
@@ -448,7 +448,7 @@ const FeaturesPage: React.FC = () => {
           >
             <Stack spacing={2}>
               <Typography variant="h4" sx={{ fontWeight: 850 }}>
-                What makes Elastra operational, not just intelligent
+                What makes Elastra AI operational, not just intelligent
               </Typography>
               <Typography color="text.secondary" sx={{ maxWidth: 980 }}>
                 The product already includes the control surfaces teams need after the first demo: GitHub-aware sync, layered rules and policies, platform-managed skills and commands, CLI setup, auditability, billing controls and reusable agent workflows.
