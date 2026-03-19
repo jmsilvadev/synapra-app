@@ -16,14 +16,28 @@ export function setAdminToken(token: string | null) {
 
 export function extractErrorMessage(error: unknown, fallback: string) {
   if (axios.isAxiosError(error)) {
-    return (
-      (error.response?.data as { error?: string } | undefined)?.error ||
-      error.message ||
-      fallback
-    );
+    if (fallback) {
+      return fallback;
+    }
+    switch (error.response?.status) {
+      case 400:
+        return "We could not process your request. Please review the provided data and try again.";
+      case 401:
+        return "Your session is invalid or expired. Please sign in again.";
+      case 403:
+        return "You do not have permission to perform this action.";
+      case 404:
+        return "The requested resource could not be found.";
+      case 409:
+        return "This action could not be completed because it conflicts with existing data.";
+      case 429:
+        return "Too many requests. Please wait a moment and try again.";
+      default:
+        return "Something went wrong while processing your request. Please try again.";
+    }
   }
   if (error instanceof Error) {
-    return error.message;
+    return fallback || "Something went wrong while processing your request. Please try again.";
   }
-  return fallback;
+  return fallback || "Something went wrong while processing your request. Please try again.";
 }

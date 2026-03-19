@@ -1,29 +1,44 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Card, CardContent, CircularProgress, Container, Stack, Typography, TextField, MenuItem, Box, Button } from "@mui/material";
+import { Alert, Autocomplete, Card, CardContent, CircularProgress, Container, Stack, Typography, TextField, MenuItem, Box, Button } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
-import { getAuditLogs } from "../services/adminService";
+import { getAuditActionStats, getAuditLogs, listUsers } from "../services/adminService";
 import { extractErrorMessage } from "../services/apiClient";
-import type { AuditLogRecord } from "../types/admin";
+import type { AuditActionStats, AuditLogMetadata, AuditLogRecord, User } from "../types/admin";
 
-const ACTION_OPTIONS = [
-  { value: "", label: "All actions" },
-  { value: "console.api_keys.create", label: "API Key Created" },
-  { value: "console.api_keys.delete", label: "API Key Deleted" },
-  { value: "knowledge.search", label: "Knowledge Search" },
-  { value: "knowledge.add", label: "Knowledge Added" },
-  { value: "knowledge.delete", label: "Knowledge Deleted" },
-  { value: "memory.add", label: "Memory Added" },
-];
+type ActionOption = {
+  value: string;
+  label: string;
+};
+
+const DEFAULT_ACTION_OPTION: ActionOption = { value: "", label: "All actions" };
+
+function formatActionLabel(action: string) {
+  return action
+    .split(".")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" / ");
+}
+
+function parseMetadata(metadata: string): AuditLogMetadata {
+  try {
+    return JSON.parse(metadata) as AuditLogMetadata;
+  } catch {
+    return {};
+  }
+}
 
 const LogsPage: React.FC = () => {
   const { currentOrganizationId } = useAuth();
   const { t } = useI18n();
   const [logs, setLogs] = useState<AuditLogRecord[]>([]);
+  const [actionOptions, setActionOptions] = useState<ActionOption[]>([DEFAULT_ACTION_OPTION]);
+  const [memberOptions, setMemberOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionFilter, setActionFilter] = useState("");
+  const [memberFilter, setMemberFilter] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [limit, setLimit] = useState(20);
@@ -33,14 +48,52 @@ const LogsPage: React.FC = () => {
     if (!currentOrganizationId) return;
     setLoading(true);
     setError(null);
-    getAuditLogs(currentOrganizationId, actionFilter || undefined, startDate || undefined, endDate || undefined, limit, newOffset)
+    getAuditLogs(
+      currentOrganizationId,
+      actionFilter || undefined,
+      memberFilter || undefined,
+      startDate || undefined,
+      endDate || undefined,
+      limit,
+      newOffset
+    )
       .then(setLogs)
       .catch((err) => setError(extractErrorMessage(err, t("logs.load_error"))))
       .finally(() => setLoading(false));
   };
 
+  const fetchActionOptions = () => {
+    if (!currentOrganizationId) return;
+    getAuditActionStats(currentOrganizationId)
+      .then((stats: AuditActionStats[]) => {
+        const dynamicOptions = stats.map((stat) => ({
+          value: stat.action,
+          label: formatActionLabel(stat.action),
+        }));
+        setActionOptions([DEFAULT_ACTION_OPTION, ...dynamicOptions]);
+      })
+      .catch(() => setActionOptions([DEFAULT_ACTION_OPTION]));
+  };
+
+  const fetchMemberOptions = () => {
+    if (!currentOrganizationId) return;
+    listUsers(currentOrganizationId)
+      .then((users: User[]) => {
+        const options = users.flatMap((user) => {
+          const values = [user.name, user.email]
+            .map((value) => value?.trim())
+            .filter((value): value is string => Boolean(value));
+          return values;
+        });
+        setMemberOptions(Array.from(new Set(options)).sort((left, right) => left.localeCompare(right)));
+      })
+      .catch(() => setMemberOptions([]));
+  };
+
   useEffect(() => {
     if (currentOrganizationId) {
+      fetchActionOptions();
+      fetchMemberOptions();
       fetchLogs(0);
     }
   }, [currentOrganizationId]);
@@ -69,10 +122,26 @@ const LogsPage: React.FC = () => {
           onChange={(e) => setActionFilter(e.target.value)}
           sx={{ minWidth: 200 }}
         >
-          {ACTION_OPTIONS.map((opt) => (
+          {actionOptions.map((opt) => (
             <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
           ))}
         </TextField>
+
+        <Autocomplete
+          freeSolo
+          options={memberOptions}
+          value={memberFilter}
+          onInputChange={(_, value) => setMemberFilter(value)}
+          onChange={(_, value) => setMemberFilter(value || "")}
+          sx={{ minWidth: 260 }}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="Member"
+              placeholder="Name or email"
+            />
+          )}
+        />
         
         <TextField
           label="Start Date"
@@ -126,11 +195,24 @@ const LogsPage: React.FC = () => {
           {logs.map((log) => (
             <Card key={log.id}>
               <CardContent>
+                {(() => {
+                  const metadata = parseMetadata(log.metadata);
+                  const actor = metadata.actor_name || metadata.actor_email;
+                  return (
+                    <>
                 <Typography variant="h6">{log.action}</Typography>
                 <Typography variant="body2" color="text.secondary">{log.created_at}</Typography>
+                {actor ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    {`Member: ${String(actor)}`}
+                  </Typography>
+                ) : null}
                 <Typography component="pre" sx={{ whiteSpace: "pre-wrap", mt: 1, mb: 0 }}>
                   {log.metadata}
                 </Typography>
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
           ))}

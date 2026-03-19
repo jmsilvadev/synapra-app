@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "synapra": {
+      "args": [],
+      "command": "/home/jmsilvadev/go/src/github.com/jmsilvadev/synapra/bin/synapra-mcp",
+      "env": {
+        "SYNAPRA_API_URL": "http://localhost:8080"
+      },
+      "type": "stdio"
+    }
+  }
+}

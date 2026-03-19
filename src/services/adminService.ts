@@ -1,3 +1,4 @@
+import axios from "axios";
 import { apiClient } from "./apiClient";
 import type {
   AdminSession,
@@ -26,6 +27,10 @@ import type {
   NamespaceRuleSummary,
   RepositoryRules,
   RepositoryRuleSummary,
+  WatchSettings,
+  UpdateWatchSettingsRequest,
+  SkillDefinition,
+  CommandDefinition,
 } from "../types/admin";
 
 export type DashboardResponse = {
@@ -46,6 +51,17 @@ export async function loginAdminWithFirebase(payload: {
   picture_url?: string | null;
 }) {
   const response = await apiClient.post<AdminSession>("/v1/console/auth/login", payload);
+  return response.data;
+}
+
+export async function acceptInvitationWithFirebase(payload: {
+  token: string;
+  id_token: string;
+  email?: string | null;
+  name?: string | null;
+  picture_url?: string | null;
+}) {
+  const response = await apiClient.post<AdminSession>("/v1/console/auth/invitations/accept", payload);
   return response.data;
 }
 
@@ -109,10 +125,28 @@ export async function revokeClientApiKey(clientId: string, keyId: string) {
   await apiClient.delete(`/v1/console/clients/${clientId}/api-keys/${keyId}`);
 }
 
-export async function getAuditLogs(clientId: string, action?: string, startDate?: string, endDate?: string, limit = 20, offset = 0) {
+export async function getDeviceRegistrations(clientId: string) {
+  const response = await apiClient.get<{ devices: ApiKey[] }>(
+    `/v1/console/clients/${clientId}/devices`
+  );
+  return asArray(response.data?.devices);
+}
+
+export async function getAuditLogs(
+  clientId: string,
+  action?: string,
+  member?: string,
+  startDate?: string,
+  endDate?: string,
+  limit = 20,
+  offset = 0
+) {
   const params: Record<string, string> = { client_id: clientId, limit: String(limit), offset: String(offset) };
   if (action) {
     params.action = action;
+  }
+  if (member) {
+    params.member = member;
   }
   if (startDate) {
     params.start_date = startDate;
@@ -174,6 +208,11 @@ export async function getSubscription(clientId: string) {
   const response = await apiClient.get<Subscription>(
     `/v1/console/clients/${clientId}/billing/subscription`
   );
+  return response.data;
+}
+
+export async function getUsage(clientId: string) {
+  const response = await apiClient.get<Usage>(`/v1/console/clients/${clientId}/usage`);
   return response.data;
 }
 
@@ -365,6 +404,32 @@ export async function deleteRepositoryRules(clientId: string, repositoryUuid: st
   await apiClient.delete(`/v1/console/clients/${clientId}/rules/repositories/${repositoryUuid}`);
 }
 
+export async function getWatchSettings(clientId: string, repositoryUuid: string): Promise<WatchSettings | null> {
+  try {
+    const response = await apiClient.get<{ watch_settings: WatchSettings | null }>(
+      `/v1/console/clients/${clientId}/repositories/${repositoryUuid}/watch-settings`
+    );
+    return response.data?.watch_settings || null;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function upsertWatchSettings(
+  clientId: string,
+  repositoryUuid: string,
+  settings: UpdateWatchSettingsRequest
+): Promise<WatchSettings> {
+  const response = await apiClient.put<{ watch_settings: WatchSettings }>(
+    `/v1/console/clients/${clientId}/repositories/${repositoryUuid}/watch-settings`,
+    settings
+  );
+  return response.data.watch_settings;
+}
+
 export type ProjectStats = {
   project_id: string;
   project_name: string;
@@ -373,6 +438,11 @@ export type ProjectStats = {
   documents_count: number;
   chunks_count: number;
   vectors_count: number;
+  embeddings_count: number;
+  functions_count: number;
+  modules_count: number;
+  endpoints_count: number;
+  entities_count: number;
 };
 
 export type NamespaceStats = {
@@ -447,4 +517,139 @@ export async function searchKnowledge(
     top_k: topK || 20,
   });
   return response.data;
+}
+
+export async function getContext(
+  projectId: string,
+  query: string,
+  namespaceId?: string,
+  task?: string,
+  topK?: number
+): Promise<import("../types/admin").ContextResponse> {
+  const body: Record<string, unknown> = {
+    project_id: projectId,
+    query,
+    top_k: topK || 10,
+  };
+  if (namespaceId) {
+    body.namespace_id = namespaceId;
+  }
+  if (task) {
+    body.task = task;
+  }
+  const response = await apiClient.post<import("../types/admin").ContextResponse>("/v1/context", body);
+  return response.data;
+}
+
+export async function listUsers(clientId: string) {
+  const response = await apiClient.get<{ users: any[] }>(`/v1/console/clients/${clientId}/users`);
+  return asArray(response.data?.users);
+}
+
+export async function updateUserRole(
+  clientId: string,
+  userId: string,
+  payload: { role: string; active: boolean }
+) {
+  const response = await apiClient.put<any>(
+    `/v1/console/clients/${clientId}/users/${userId}`,
+    payload
+  );
+  return response.data;
+}
+
+export async function listInvitations(clientId: string) {
+  const response = await apiClient.get<{ invitations: any[] }>(`/v1/console/clients/${clientId}/invitations`);
+  return asArray(response.data?.invitations);
+}
+
+export async function createInvitation(
+  clientId: string,
+  payload: { email: string; role: string }
+) {
+  const response = await apiClient.post<any>(`/v1/console/invitations`, {
+    organization_id: clientId,
+    ...payload,
+  });
+  return response.data;
+}
+
+export async function resendInvitation(invitationId: string) {
+  const response = await apiClient.post<any>(`/v1/console/invitations/${invitationId}/resend`);
+  return response.data;
+}
+
+export type CreateSkillPayload = {
+  name: string;
+  instructions: string;    // primary field
+  prompt_template?: string; // backward compat (fallback)
+  description?: string;
+  key?: string;
+  scope?: "org" | "project";
+  project_id?: string;
+};
+
+export type CreateCommandPayload = {
+  slug: string;     // friendly name (without leading slash)
+  trigger?: string; // backward compat; derived from slug if omitted
+  skill_id: string;
+  description?: string;
+};
+
+export async function listSkills() {
+  const response = await apiClient.get<{ skills: SkillDefinition[] }>("/v1/skills");
+  return asArray(response.data?.skills);
+}
+
+export async function createSkill(payload: CreateSkillPayload) {
+  const instructions = payload.instructions || payload.prompt_template || "";
+  const response = await apiClient.post<SkillDefinition>("/v1/skills", {
+    name: payload.name,
+    instructions,
+    prompt_template: instructions,
+    description: payload.description || instructions,
+    key: payload.key || "",
+    scope: payload.scope || "org",
+    project_id: payload.project_id || "",
+    aliases: [],
+    pipeline: [],
+    tools: [],
+    context_strategy: "compressed",
+    config: {},
+    enabled: true,
+  });
+  return response.data;
+}
+
+export async function updateSkill(skillId: string, payload: { name: string; instructions: string }) {
+  const response = await apiClient.put<SkillDefinition>(`/v1/skills/${skillId}`, {
+    name: payload.name,
+    instructions: payload.instructions,
+    prompt_template: payload.instructions,
+    description: payload.instructions,
+  });
+  return response.data;
+}
+
+export async function deleteSkill(skillId: string) {
+  await apiClient.delete(`/v1/skills/${skillId}`);
+}
+
+export async function listCommands() {
+  const response = await apiClient.get<{ commands: CommandDefinition[] }>("/v1/commands");
+  return asArray(response.data?.commands);
+}
+
+export async function createCommand(payload: CreateCommandPayload) {
+  const trigger = payload.trigger || (payload.slug.startsWith("/") ? payload.slug : `/${payload.slug}`);
+  const response = await apiClient.post<CommandDefinition>("/v1/commands", {
+    trigger,
+    skill_id: payload.skill_id,
+    description: payload.description || "",
+  });
+  return response.data;
+}
+
+export async function deleteCommand(commandId: string) {
+  await apiClient.delete(`/v1/commands/${commandId}`);
 }

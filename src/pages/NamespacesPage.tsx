@@ -281,6 +281,7 @@ const NamespacesPage: React.FC = () => {
                           <Tooltip title={t("common.delete")}>
                             <IconButton
                               size="small"
+                              color="error"
                               onClick={() => {
                                 setDeleteNamespaceId(namespace.id);
                                 setDeleteNamespaceName(namespace.name);
@@ -350,7 +351,7 @@ const NamespacesPage: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteNamespaceId(null)}>{t("common.cancel")}</Button>
-          <Button onClick={handleDelete} variant="contained" color="error" disabled={deleting}>
+          <Button onClick={handleDelete} variant="contained" color="error" sx={{ color: "common.white" }} disabled={deleting}>
             {deleting ? t("common.delete") : t("common.delete")}
           </Button>
         </DialogActions>

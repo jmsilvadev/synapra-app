@@ -1,11 +1,12 @@
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider, createTheme, CssBaseline } from "@mui/material";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AuthProvider, hasSeenGettingStarted, markGettingStartedSeen, useAuth } from "./context/AuthContext";
 import { I18nProvider, useI18n } from "./i18n";
 import LoginPage from "./pages/LoginPage";
 import PlansPage from "./pages/PlansPage";
 import FeaturesPage from "./pages/FeaturesPage";
+import HowItWorksPage from "./pages/HowItWorksPage";
 import DashboardLayout from "./components/DashboardLayout";
 import DashboardPage from "./pages/DashboardPage";
 import RulesPoliciesPage from "./pages/RulesPoliciesPage";
@@ -17,8 +18,14 @@ import NamespacesPage from "./pages/NamespacesPage";
 import ApiIntegrationsPage from "./pages/ApiIntegrationsPage";
 import SignupPage from "./pages/SignupPage";
 import SignupVerifyPage from "./pages/SignupVerifyPage";
+import InviteAcceptPage from "./pages/InviteAcceptPage";
 import AuthCliPage from "./pages/AuthCliPage";
+import GettingStartedPage from "./pages/GettingStartedPage";
+import DownloadsPage from "./pages/DownloadsPage";
 import OrganizationKnowledgePage from "./pages/OrganizationKnowledgePage";
+import MembersPage from "./pages/MembersPage";
+import SkillsPage from "./pages/SkillsPage";
+import CommandsPage from "./pages/CommandsPage";
 
 const theme = createTheme({
   palette: {
@@ -148,7 +155,7 @@ const theme = createTheme({
 });
 
 const AppRoutes: React.FC = () => {
-  const { user, initializing } = useAuth();
+  const { user, currentOrganizationId, initializing } = useAuth();
   const { t } = useI18n();
 
   if (initializing) {
@@ -160,35 +167,64 @@ const AppRoutes: React.FC = () => {
       <Routes>
         <Route path="/plans" element={<PlansPage />} />
         <Route path="/features" element={<FeaturesPage />} />
+        <Route path="/how-it-works" element={<HowItWorksPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/signup/verify" element={<SignupVerifyPage />} />
+        <Route path="/auth/invite" element={<InviteAcceptPage />} />
         <Route path="/auth/cli" element={<AuthCliPage />} />
         <Route path="*" element={<LoginPage />} />
       </Routes>
     );
   }
 
+  const organizationId = currentOrganizationId || user.organization_id;
+  const isViewer = String(user.role || "").toLowerCase() === "viewer";
+  const defaultAuthenticatedRoute = useMemo(
+    () => {
+      if (isViewer) {
+        return "/knowledge";
+      }
+      return hasSeenGettingStarted(user.id, organizationId) ? "/knowledge" : "/getting-started";
+    },
+    [isViewer, organizationId, user.id]
+  );
+
+  useEffect(() => {
+    if (defaultAuthenticatedRoute === "/getting-started") {
+      markGettingStartedSeen(user.id, organizationId);
+    }
+  }, [defaultAuthenticatedRoute, organizationId, user.id]);
+
   return (
     <Routes>
+      <Route path="/auth/invite" element={<InviteAcceptPage />} />
       <Route path="/auth/cli" element={<AuthCliPage />} />
       <Route path="/" element={<DashboardLayout />}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="projects" element={<ProjectsPage />} />
-        <Route path="namespaces" element={<NamespacesPage />} />
-        <Route path="rules-policies" element={<RulesPoliciesPage />} />
+        <Route index element={<Navigate to={defaultAuthenticatedRoute} replace />} />
+        {!isViewer && <Route path="dashboard" element={<DashboardPage />} />}
+        {!isViewer && <Route path="projects" element={<ProjectsPage />} />}
+        {!isViewer && <Route path="namespaces" element={<NamespacesPage />} />}
+        {!isViewer && <Route path="rules-policies" element={<RulesPoliciesPage />} />}
         <Route path="api" element={<ApiIntegrationsPage />} />
-        <Route path="logs" element={<LogsPage />} />
-        <Route path="settings" element={<SettingsPage />} />
-        <Route path="repositories" element={<RepositoriesPage />} />
+        {!isViewer && <Route path="logs" element={<LogsPage />} />}
+        {!isViewer && <Route path="settings" element={<SettingsPage />} />}
+        {!isViewer && <Route path="repositories" element={<RepositoriesPage />} />}
+        {!isViewer && <Route path="skills" element={<SkillsPage />} />}
+        {!isViewer && <Route path="commands" element={<CommandsPage />} />}
         <Route path="knowledge" element={<OrganizationKnowledgePage />} />
-        <Route path="plans" element={<PlansPage />} />
-        <Route path="features" element={<FeaturesPage />} />
+        <Route path="getting-started" element={<GettingStartedPage />} />
+        <Route path="downloads" element={<DownloadsPage />} />
+        {!isViewer && <Route path="members" element={<MembersPage />} />}
+        {!isViewer && <Route path="plans" element={<PlansPage />} />}
+        {!isViewer && <Route path="features" element={<FeaturesPage />} />}
+        {!isViewer && <Route path="how-it-works" element={<HowItWorksPage />} />}
+        {isViewer && <Route path="*" element={<Navigate to="/knowledge" replace />} />}
       </Route>
       <Route path="plans" element={<PlansPage />} />
       <Route path="features" element={<FeaturesPage />} />
-      <Route path="signup" element={<Navigate to="/dashboard" replace />} />
-      <Route path="signup/verify" element={<Navigate to="/dashboard" replace />} />
+      <Route path="how-it-works" element={<HowItWorksPage />} />
+      <Route path="signup" element={<Navigate to={defaultAuthenticatedRoute} replace />} />
+      <Route path="signup/verify" element={<Navigate to={defaultAuthenticatedRoute} replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

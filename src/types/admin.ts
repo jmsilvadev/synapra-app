@@ -10,6 +10,39 @@ export type AdminUser = {
   active: boolean;
 };
 
+export type User = {
+  id: string;
+  organization_id?: string;
+  role?: string;
+  external_subject?: string;
+  email: string;
+  name: string;
+  picture_url?: string;
+  active: boolean;
+  last_login_at?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type Invitation = {
+  id: string;
+  organization_id: string;
+  organization_name?: string;
+  email: string;
+  role: string;
+  invited_by_user_id?: string;
+  token?: string;
+  expires_at: string;
+  accepted_at?: string;
+  created_at?: string;
+};
+
+export type CreateInvitationRequest = {
+  organization_id: string;
+  email: string;
+  role: string;
+};
+
 export type AdminSession = {
   token?: string;
   expires_at: string;
@@ -43,6 +76,58 @@ export type Usage = {
   search_requests_24h: number;
   ingestion_requests: number;
   approx_tokens_stored: number;
+  limits?: {
+    max_stored_chunks: number;
+    max_stored_memories: number;
+    max_search_requests_24h: number;
+    max_ingestion_requests: number;
+    max_approx_tokens_stored: number;
+  };
+  summary?: {
+    stored_chunks: {
+      used: number;
+      limit: number;
+      remaining: number;
+      percent_consumed: number;
+    };
+    stored_memories: {
+      used: number;
+      limit: number;
+      remaining: number;
+      percent_consumed: number;
+    };
+    search_requests_24h: {
+      used: number;
+      limit: number;
+      remaining: number;
+      percent_consumed: number;
+    };
+    ingestion_requests: {
+      used: number;
+      limit: number;
+      remaining: number;
+      percent_consumed: number;
+    };
+    approx_tokens_stored: {
+      used: number;
+      limit: number;
+      remaining: number;
+      percent_consumed: number;
+    };
+  };
+  scu?: {
+    monthly_allowance: number;
+    consumed: number;
+    remaining: number;
+    percent_consumed: number;
+    billing_period_start?: string;
+    billing_period_end?: string;
+    by_operation?: Array<{
+      operation_type: string;
+      scu_consumed: number;
+      operations: number;
+    }>;
+  };
 };
 
 export type Plan = {
@@ -54,12 +139,48 @@ export type Plan = {
   currency_code: string;
   trial_days: number;
   invoice_provider: string;
+  scu_monthly_allowance?: number;
   active: boolean;
 };
 
 export type OrganizationRules = {
   organization_id: string;
   rules_markdown: string;
+};
+
+export type SkillDefinition = {
+  id: string;
+  key: string;
+  scope: string;
+  organization_id: string;
+  project_id: string;
+  name: string;
+  aliases: string[];
+  description: string;
+  instructions: string;    // primary field
+  pipeline: string[];
+  prompt_template: string; // backward compat
+  tools: string[];
+  context_strategy: string;
+  config: Record<string, unknown>;
+  enabled: boolean;
+  is_system: boolean;
+  usage_count: number;
+  avg_tokens: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CommandDefinition = {
+  id: string;
+  organization_id: string;
+  slug: string;    // friendly alias; same as trigger
+  trigger: string;
+  skill_id: string;
+  description: string;
+  usage_count: number;
+  created_at: string;
+  updated_at: string;
 };
 
 export type ProjectRules = {
@@ -113,6 +234,11 @@ export type RepositoryRuleSummary = {
   repository_uuid: string;
   repository_name: string;
   repository_full_name: string;
+  project_uuid?: string;
+  project_id?: string;
+  project_name?: string;
+  namespace_uuid?: string;
+  namespace_name?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -123,6 +249,14 @@ export type AuditLogRecord = {
   action: string;
   metadata: string;
   created_at: string;
+};
+
+export type AuditLogMetadata = {
+  actor_user_id?: string;
+  actor_email?: string;
+  actor_name?: string;
+  actor_role?: string;
+  [key: string]: unknown;
 };
 
 export type AuditActionStats = {
@@ -193,6 +327,10 @@ export type ApiKey = {
   preview?: string;
   created_at?: string;
   revoked_at?: string;
+  last_used_at?: string;
+  user_id?: string;
+  user_email?: string;
+  device_info?: string;
 };
 
 export type ApiKeyCreateResponse = ApiKey & {
@@ -260,4 +398,134 @@ export type CreateRepositoryRequest = {
   clone_url?: string;
   default_branch: string;
   is_private: boolean;
+};
+
+export type WatchSettings = {
+  id: string;
+  repository_id: string;
+  patterns: string[];
+  exclude: string[];
+  debounce: string;
+  batch_size: number;
+  github_auto_sync_enabled: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type UpdateWatchSettingsRequest = {
+  patterns: string[];
+  exclude: string[];
+  debounce: string;
+  batch_size: number;
+  github_auto_sync_enabled: boolean;
+};
+
+export type ContextFunction = {
+  name: string;
+  full_name: string;
+  file_path: string;
+  line_start: number;
+  line_end: number;
+  receiver?: string;
+  is_exported: boolean;
+  is_method: boolean;
+  return_types?: string[];
+  score: number;
+};
+
+export type ContextType = {
+  name: string;
+  file_path: string;
+  line_start: number;
+  line_end: number;
+  type_kind: string;
+  fields?: ContextField[];
+  embeds?: string[];
+  methods?: string[];
+  score: number;
+};
+
+export type ContextField = {
+  name: string;
+  type: string;
+};
+
+export type ContextInterface = {
+  name: string;
+  file_path: string;
+  line_start: number;
+  line_end: number;
+  methods?: string[];
+  score: number;
+};
+
+export type ContextCall = {
+  caller_name: string;
+  callee_name: string;
+  callee_file?: string;
+  call_type: string;
+};
+
+export type ContextImplementation = {
+  interface_name: string;
+  implementor_name: string;
+  implementor_file?: string;
+};
+
+export type ContextResponse = {
+  query: string;
+  task?: string;
+  files?: ContextFile[];
+  modules?: ContextModule[];
+  endpoints?: ContextEndpoint[];
+  memories?: ContextMemory[];
+  summary: string;
+  functions?: ContextFunction[];
+  types?: ContextType[];
+  interfaces?: ContextInterface[];
+  calls?: ContextCall[];
+  implementations?: ContextImplementation[];
+  graph_summary?: string;
+  memory_sync?: string;
+  memory_sync_details?: {
+    memory_type?: string;
+    confidence?: number;
+    margin?: number;
+    secondary_type?: string;
+  };
+};
+
+export type ContextFile = {
+  path: string;
+  content?: string;
+  score: number;
+  source?: string;
+  source_type?: string;
+  line_start?: number;
+  line_end?: number;
+  section_anchor?: string;
+  symbol?: string;
+  relevance?: string;
+};
+
+export type ContextModule = {
+  name: string;
+  path: string;
+  type: string;
+  relevance?: string;
+};
+
+export type ContextEndpoint = {
+  method: string;
+  path: string;
+  handler?: string;
+  relevance?: string;
+};
+
+export type ContextMemory = {
+  id: string;
+  type: string;
+  title: string;
+  content: string;
+  created_at: string;
 };

@@ -220,6 +220,35 @@ const DashboardPage: React.FC = () => {
             ))}
           </Grid>
 
+          {/* Chunks Usage */}
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>{t("dashboard.chunks_usage")}</Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={6} md={3}>
+                  <Typography variant="body2" color="text.secondary">{t("dashboard.stored_chunks")}</Typography>
+                  <Typography variant="h5">{projectStats.reduce((sum, p) => sum + p.chunks_count, 0).toLocaleString()}</Typography>
+                </Grid>
+                <Grid item xs={6} md={3}>
+                  <Typography variant="body2" color="text.secondary">{t("dashboard.vectors_stored")}</Typography>
+                  <Typography variant="h5">{projectStats.reduce((sum, p) => sum + p.vectors_count, 0).toLocaleString()}</Typography>
+                </Grid>
+                {metrics && (
+                  <>
+                    <Grid item xs={6} md={3}>
+                      <Typography variant="body2" color="text.secondary">{t("dashboard.queries_total")}</Typography>
+                      <Typography variant="h5">{metrics.total_queries}</Typography>
+                    </Grid>
+                    <Grid item xs={6} md={3}>
+                      <Typography variant="body2" color="text.secondary">{t("dashboard.tokens_saved")}</Typography>
+                      <Typography variant="h5" color="success.main">{metrics.est_tokens_saved.toLocaleString()}</Typography>
+                    </Grid>
+                  </>
+                )}
+              </Grid>
+            </CardContent>
+          </Card>
+
           {/* Projects Stats Table */}
           <Card>
             <CardContent>
@@ -233,6 +262,8 @@ const DashboardPage: React.FC = () => {
                       <TableCell align="center">{t("dashboard.project_repositories")}</TableCell>
                       <TableCell align="center">{t("dashboard.documents")}</TableCell>
                       <TableCell align="center">{t("dashboard.chunks")}</TableCell>
+                      <TableCell align="center">{t("dashboard.embeddings")}</TableCell>
+                      <TableCell align="center">{t("dashboard.graph")}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -256,11 +287,22 @@ const DashboardPage: React.FC = () => {
                         <TableCell align="center">
                           <Typography>{project.chunks_count.toLocaleString()}</Typography>
                         </TableCell>
+                        <TableCell align="center">
+                          <Typography>{(project.embeddings_count || 0).toLocaleString()}</Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Stack direction="row" spacing={0.5} justifyContent="center">
+                            <Chip label={`F: ${(project.functions_count || 0).toLocaleString()}`} size="small" variant="outlined" />
+                            <Chip label={`M: ${(project.modules_count || 0).toLocaleString()}`} size="small" variant="outlined" />
+                            <Chip label={`E: ${(project.endpoints_count || 0).toLocaleString()}`} size="small" variant="outlined" />
+                            <Chip label={`T: ${(project.entities_count || 0).toLocaleString()}`} size="small" variant="outlined" />
+                          </Stack>
+                        </TableCell>
                       </TableRow>
                     ))}
                     {projectStats.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} align="center">
+                        <TableCell colSpan={7} align="center">
                           <Typography color="text.secondary">{t("dashboard.no_projects")}</Typography>
                         </TableCell>
                       </TableRow>
@@ -414,35 +456,6 @@ const DashboardPage: React.FC = () => {
               ) : (
                 <Typography color="text.secondary">{t("dashboard.no_data")}</Typography>
               )}
-            </CardContent>
-          </Card>
-
-          {/* Chunks Usage */}
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>{t("dashboard.chunks_usage")}</Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={6} md={3}>
-                  <Typography variant="body2" color="text.secondary">{t("dashboard.stored_chunks")}</Typography>
-                  <Typography variant="h5">{projectStats.reduce((sum, p) => sum + p.chunks_count, 0).toLocaleString()}</Typography>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Typography variant="body2" color="text.secondary">{t("dashboard.vectors_stored")}</Typography>
-                  <Typography variant="h5">{projectStats.reduce((sum, p) => sum + p.vectors_count, 0).toLocaleString()}</Typography>
-                </Grid>
-                {metrics && (
-                  <>
-                    <Grid item xs={6} md={3}>
-                      <Typography variant="body2" color="text.secondary">{t("dashboard.queries_total")}</Typography>
-                      <Typography variant="h5">{metrics.total_queries}</Typography>
-                    </Grid>
-                    <Grid item xs={6} md={3}>
-                      <Typography variant="body2" color="text.secondary">{t("dashboard.tokens_saved")}</Typography>
-                      <Typography variant="h5" color="success.main">{metrics.est_tokens_saved.toLocaleString()}</Typography>
-                    </Grid>
-                  </>
-                )}
-              </Grid>
             </CardContent>
           </Card>
 

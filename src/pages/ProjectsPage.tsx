@@ -234,6 +234,7 @@ const ProjectsPage: React.FC = () => {
                       <Tooltip title={t("common.delete")}>
                         <IconButton
                           size="small"
+                          color="error"
                           onClick={() => setDeleteProjectId(project.id)}
                         >
                           <DeleteIcon fontSize="small" />
@@ -292,7 +293,7 @@ const ProjectsPage: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteProjectId(null)}>{t("common.cancel")}</Button>
-          <Button onClick={handleDelete} variant="contained" color="error" disabled={deleting}>
+          <Button onClick={handleDelete} variant="contained" color="error" sx={{ color: "common.white" }} disabled={deleting}>
             {deleting ? t("common.delete") : t("common.delete")}
           </Button>
         </DialogActions>
