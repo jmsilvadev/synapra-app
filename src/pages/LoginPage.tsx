@@ -1,6 +1,12 @@
 import React from "react";
 import { Alert, Box, Button, Typography } from "@mui/material";
-import { Google as GoogleIcon, PsychologyAlt as PsychologyIcon, AttachMoney as MoneyIcon, Hub as HubIcon } from "@mui/icons-material";
+import {
+  GitHub as GitHubIcon,
+  Google as GoogleIcon,
+  PsychologyAlt as PsychologyIcon,
+  AttachMoney as MoneyIcon,
+  Hub as HubIcon,
+} from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import LanguageSwitcher from "../components/LanguageSwitcher";
@@ -8,7 +14,7 @@ import { useI18n } from "../i18n";
 import { usePageSeo } from "../hooks/usePageSeo";
 
 const LoginPage: React.FC = () => {
-  const { loginWithGoogle, loginError } = useAuth();
+  const { loginWithGoogle, loginWithGithub, loginError } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
 
@@ -100,6 +106,14 @@ const LoginPage: React.FC = () => {
             sx={{ py: 1.5 }}
           >
             {t("login.google")}
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<GitHubIcon />}
+            onClick={loginWithGithub}
+            sx={{ py: 1.5 }}
+          >
+            {t("login.github", { defaultValue: "Continue with GitHub" })}
           </Button>
         </Box>
 

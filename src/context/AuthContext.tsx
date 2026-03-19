@@ -10,7 +10,7 @@ import axios from "axios";
 import { GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import { auth } from "../service/firebase";
 import { getStoredLanguage, translate } from "../i18n";
-import { extractErrorMessage, setAdminToken } from "../services/apiClient";
+import { apiBaseURL, extractErrorMessage, setAdminToken } from "../services/apiClient";
 import {
   acceptInvitationWithFirebase,
   getClients,
@@ -29,6 +29,7 @@ type AuthContextType = {
   initializing: boolean;
   loginError: string | null;
   loginWithGoogle: () => Promise<void>;
+  loginWithGithub: () => Promise<void>;
   acceptInvitationWithGoogle: (inviteToken: string) => Promise<void>;
   logout: () => Promise<void>;
   setCurrentOrganizationId: (organizationId: string | null) => void;
@@ -152,6 +153,18 @@ function shouldRedirectToSignup(error: unknown) {
   }
   const message = String((error.response?.data as { error?: string } | undefined)?.error || "").toLowerCase();
   return message.includes("organization");
+}
+
+function openCenteredPopup(url: string, name: string) {
+  const width = 640;
+  const height = 760;
+  const left = window.screenX + (window.outerWidth - width) / 2;
+  const top = window.screenY + (window.outerHeight - height) / 2;
+  return window.open(
+    url,
+    name,
+    `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,resizable=yes,scrollbars=yes`
+  );
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -298,6 +311,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [applySession]);
 
+  const loginWithGithub = useCallback(async () => {
+    setLoginError(null);
+    const popup = openCenteredPopup(`${apiBaseURL}/v1/console/auth/github/authorize`, "GitHubConsoleLogin");
+    if (!popup) {
+      setLoginError(tr("auth.popup_blocked"));
+      return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const cleanup = () => {
+        window.removeEventListener("message", handleMessage);
+        clearInterval(checkClosed);
+      };
+
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data?.type !== "console-github-login") {
+          return;
+        }
+        cleanup();
+        if (!event.data?.success || !event.data?.session) {
+          reject(new Error(tr("auth.github_error")));
+          return;
+        }
+        applySession(event.data.session as AdminSession);
+        resolve();
+      };
+
+      const checkClosed = window.setInterval(() => {
+        if (popup.closed) {
+          cleanup();
+          reject(new Error(tr("auth.popup_closed")));
+        }
+      }, 500);
+
+      window.addEventListener("message", handleMessage);
+    }).catch((error) => {
+      applySession(null);
+      setLoginError(extractErrorMessage(error, tr("auth.github_error")));
+    });
+  }, [applySession]);
+
   const acceptInvitationWithGoogle = useCallback(
     async (inviteToken: string) => {
       const token = String(inviteToken || "").trim();
@@ -349,6 +403,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       initializing,
       loginError,
       loginWithGoogle,
+      loginWithGithub,
       acceptInvitationWithGoogle,
       logout,
       setCurrentOrganizationId,
@@ -358,6 +413,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       initializing,
       loginError,
       loginWithGoogle,
+      loginWithGithub,
       acceptInvitationWithGoogle,
       logout,
       session,

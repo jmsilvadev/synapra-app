@@ -266,7 +266,7 @@ const PlansPage: React.FC = () => {
   };
 
   const handleLogin = () => {
-    loginWithGoogle();
+    void loginWithGoogle();
   };
 
   if (loading) {

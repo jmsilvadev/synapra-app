@@ -27,6 +27,7 @@ import {
   FormControlLabel,
   Checkbox,
   MenuItem,
+  Switch,
 } from "@mui/material";
 import {
   GitHub as GitHubIcon,
@@ -43,8 +44,8 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
 import { apiClient, apiBaseURL, extractErrorMessage } from "../services/apiClient";
-import { getProjects, getNamespaces, getRepositories, createRepository, deleteRepository, createGitHubFiles, syncGitHubRepository } from "../services/adminService";
-import type { Project, Repository } from "../types/admin";
+import { getProjects, getNamespaces, getRepositories, deleteRepository, createGitHubFiles, syncGitHubRepository, getWatchSettings, upsertWatchSettings } from "../services/adminService";
+import type { Project, Repository, WatchSettings } from "../types/admin";
 
 interface GitHubIntegration {
   connected: boolean;
@@ -80,6 +81,8 @@ const RepositoriesPage: React.FC = () => {
   const [editingRepository, setEditingRepository] = useState<Repository | null>(null);
   const [deleteRepositoryId, setDeleteRepositoryId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [watchSettingsByRepo, setWatchSettingsByRepo] = useState<Record<string, WatchSettings | null>>({});
+  const [savingAutoSyncRepoId, setSavingAutoSyncRepoId] = useState<string | null>(null);
   const [syncForm, setSyncForm] = useState({
     project_id: "",
     namespace_id: "",
@@ -101,6 +104,7 @@ const RepositoriesPage: React.FC = () => {
         ]);
         setProjects(projectsData);
         setRepositories(reposData);
+        await loadWatchSettings(currentOrganizationId, reposData);
         setIntegration(integrationRes.data);
 
         if (integrationRes.data.connected) {
@@ -115,6 +119,24 @@ const RepositoriesPage: React.FC = () => {
     };
     void load();
   }, [currentOrganizationId, t]);
+
+  const loadWatchSettings = async (organizationId: string, repos: Repository[]) => {
+    if (repos.length === 0) {
+      setWatchSettingsByRepo({});
+      return;
+    }
+    const entries = await Promise.all(
+      repos.map(async (repo) => {
+        try {
+          const settings = await getWatchSettings(organizationId, repo.id);
+          return [repo.id, settings] as const;
+        } catch {
+          return [repo.id, null] as const;
+        }
+      })
+    );
+    setWatchSettingsByRepo(Object.fromEntries(entries));
+  };
 
   useEffect(() => {
     const loadNamespaces = async () => {
@@ -281,6 +303,7 @@ const RepositoriesPage: React.FC = () => {
       setEditingRepository(null);
       const reposData = await getRepositories(currentOrganizationId);
       setRepositories(reposData);
+      await loadWatchSettings(currentOrganizationId, reposData);
     } catch (err) {
       setError(extractErrorMessage(err, t("repositories.sync_error")));
     } finally {
@@ -294,6 +317,11 @@ const RepositoriesPage: React.FC = () => {
     try {
       await deleteRepository(currentOrganizationId, repoId);
       setRepositories(repositories.filter((r) => r.id !== repoId));
+      setWatchSettingsByRepo((prev) => {
+        const next = { ...prev };
+        delete next[repoId];
+        return next;
+      });
       setSuccess(t("repositories.removed"));
       setDeleteRepositoryId(null);
     } catch (err) {
@@ -309,6 +337,7 @@ const RepositoriesPage: React.FC = () => {
     try {
       const reposData = await getRepositories(currentOrganizationId);
       setRepositories(reposData);
+      await loadWatchSettings(currentOrganizationId, reposData);
     } catch (err) {
       setError(extractErrorMessage(err, t("repositories.load_error")));
     } finally {
@@ -322,6 +351,35 @@ const RepositoriesPage: React.FC = () => {
   };
 
   const isRepoSynced = (repoId: number) => repositories.some((r) => r.github_repo_id === repoId);
+
+  const isAutoSyncEnabled = (repo: Repository) => Boolean(watchSettingsByRepo[repo.id]?.github_auto_sync_enabled);
+
+  const handleAutoSyncToggle = async (repo: Repository, checked: boolean) => {
+    if (!currentOrganizationId) return;
+    setSavingAutoSyncRepoId(repo.id);
+    setError(null);
+
+    const existing = watchSettingsByRepo[repo.id];
+    try {
+      const updated = await upsertWatchSettings(currentOrganizationId, repo.id, {
+        patterns: existing?.patterns ?? [],
+        exclude: existing?.exclude ?? [],
+        debounce: existing?.debounce ?? "5s",
+        batch_size: existing?.batch_size ?? 50,
+        github_auto_sync_enabled: checked,
+      });
+      setWatchSettingsByRepo((prev) => ({ ...prev, [repo.id]: updated }));
+      setSuccess(
+        checked
+          ? t("repositories.auto_sync_enabled_success", { name: repo.full_name })
+          : t("repositories.auto_sync_disabled_success", { name: repo.full_name })
+      );
+    } catch (err) {
+      setError(extractErrorMessage(err, t("repositories.auto_sync_error")));
+    } finally {
+      setSavingAutoSyncRepoId(null);
+    }
+  };
 
   const repositoriesByProject = repositories.reduce((acc, repo) => {
     const key = repo.project_id;
@@ -403,6 +461,7 @@ const RepositoriesPage: React.FC = () => {
                     <TableRow>
                       <TableCell>{t("repositories.table.name")}</TableCell>
                       <TableCell>{t("repositories.table.branch")}</TableCell>
+                      <TableCell>{t("repositories.table.auto_sync")}</TableCell>
                       <TableCell>{t("repositories.table.status")}</TableCell>
                       <TableCell align="right">{t("repositories.table.actions")}</TableCell>
                     </TableRow>
@@ -417,6 +476,22 @@ const RepositoriesPage: React.FC = () => {
                           </Stack>
                         </TableCell>
                         <TableCell>{repo.default_branch || "main"}</TableCell>
+                        <TableCell>
+                          <FormControlLabel
+                            sx={{ m: 0 }}
+                            control={
+                              <Switch
+                                size="small"
+                                checked={isAutoSyncEnabled(repo)}
+                                disabled={savingAutoSyncRepoId === repo.id}
+                                onChange={(_, checked) => {
+                                  void handleAutoSyncToggle(repo, checked);
+                                }}
+                              />
+                            }
+                            label={isAutoSyncEnabled(repo) ? t("repositories.auto_sync_on") : t("repositories.auto_sync_off")}
+                          />
+                        </TableCell>
                         <TableCell>
                           <Chip 
                             label={repo.pending_docs && repo.pending_docs > 0 ? t("repositories.processing") : (repo.sync_status === "syncing" ? t("repositories.syncing") || "Syncing..." : (repo.sync_status || "synced"))} 

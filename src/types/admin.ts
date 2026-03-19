@@ -407,6 +407,7 @@ export type WatchSettings = {
   exclude: string[];
   debounce: string;
   batch_size: number;
+  github_auto_sync_enabled: boolean;
   created_at?: string;
   updated_at?: string;
 };
@@ -416,6 +417,7 @@ export type UpdateWatchSettingsRequest = {
   exclude: string[];
   debounce: string;
   batch_size: number;
+  github_auto_sync_enabled: boolean;
 };
 
 export type ContextFunction = {
