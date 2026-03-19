@@ -11,6 +11,7 @@ import type {
   DashboardSummary,
   InvoiceRecord,
   OrganizationRules,
+  UserRules,
   OrganizationSettings,
   Subscription,
   Usage,
@@ -106,6 +107,21 @@ export async function updateOrganizationRules(clientId: string, rulesMarkdown: s
   return response.data;
 }
 
+export async function getCurrentUserRules(clientId: string) {
+  const response = await apiClient.get<UserRules>(
+    `/v1/console/clients/${clientId}/rules/user`
+  );
+  return response.data;
+}
+
+export async function updateCurrentUserRules(clientId: string, rulesMarkdown: string) {
+  const response = await apiClient.put<UserRules>(
+    `/v1/console/clients/${clientId}/rules/user`,
+    { rules_markdown: rulesMarkdown }
+  );
+  return response.data;
+}
+
 export async function getClientApiKeys(clientId: string) {
   const response = await apiClient.get<{ api_keys: ApiKey[] }>(
     `/v1/console/clients/${clientId}/api-keys`
@@ -168,7 +184,7 @@ export async function getAuditActionStats(clientId: string) {
 }
 
 export async function getSynapraMetrics(clientId: string) {
-  const response = await apiClient.get<{ metrics: SynapraMetrics }>("/v1/console/synapra/metrics", {
+  const response = await apiClient.get<{ metrics: SynapraMetrics }>("/v1/console/elastra/metrics", {
     params: { client_id: clientId },
   });
   return response.data?.metrics;
@@ -549,7 +565,12 @@ export async function listUsers(clientId: string) {
 export async function updateUserRole(
   clientId: string,
   userId: string,
-  payload: { role: string; active: boolean }
+  payload: {
+    role: string;
+    active: boolean;
+    max_devices_override?: number | null;
+    update_max_devices_override?: boolean;
+  }
 ) {
   const response = await apiClient.put<any>(
     `/v1/console/clients/${clientId}/users/${userId}`,

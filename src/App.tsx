@@ -49,8 +49,7 @@ const theme = createTheme({
     MuiCssBaseline: {
       styleOverrides: {
         body: {
-          background:
-            "radial-gradient(circle at top left, rgba(0, 224, 255, 0.08), transparent 28%), #071417",
+          background: "#071417",
           color: "#E6F7F7",
         },
       },
@@ -94,12 +93,12 @@ const theme = createTheme({
     MuiButton: {
       styleOverrides: {
         containedPrimary: {
-          backgroundColor: "#00C6B8",
-          color: "#031012",
+          backgroundColor: "#0033B3",
+          color: "#FFFFFF",
           fontWeight: 700,
-          boxShadow: "0 10px 24px rgba(0, 198, 184, 0.20)",
+          boxShadow: "0 10px 24px rgba(0, 51, 179, 0.28)",
           "&:hover": {
-            backgroundColor: "#00B7AB",
+            backgroundColor: "#002A94",
           },
         },
         outlined: {
@@ -204,7 +203,7 @@ const AppRoutes: React.FC = () => {
         {!isViewer && <Route path="dashboard" element={<DashboardPage />} />}
         {!isViewer && <Route path="projects" element={<ProjectsPage />} />}
         {!isViewer && <Route path="namespaces" element={<NamespacesPage />} />}
-        {!isViewer && <Route path="rules-policies" element={<RulesPoliciesPage />} />}
+        <Route path="rules-policies" element={<RulesPoliciesPage />} />
         <Route path="api" element={<ApiIntegrationsPage />} />
         {!isViewer && <Route path="logs" element={<LogsPage />} />}
         {!isViewer && <Route path="settings" element={<SettingsPage />} />}

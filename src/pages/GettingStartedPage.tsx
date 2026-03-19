@@ -146,7 +146,7 @@ const GettingStartedPage: React.FC = () => {
       "command": "synapra-mcp",
       "args": [],
       "env": {
-        "SYNAPRA_API_URL": "https://api.synapra.ai"
+        "SYNAPRA_API_URL": "https://api.elastra.ai"
       }
     }
   }

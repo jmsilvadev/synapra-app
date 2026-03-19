@@ -77,7 +77,7 @@ const DownloadsPage: React.FC = () => {
             {t("downloads.quick_install")}
           </Typography>
           <Box sx={{ bgcolor: "action.hover", p: 2, borderRadius: 1, fontFamily: "monospace", fontSize: "0.875rem" }}>
-            curl -fsSL https://api.synapra.ai/v1/downloads/install.sh | bash
+            curl -fsSL https://api.elastra.ai/v1/downloads/install.sh | bash
           </Box>
           <Alert severity="info" sx={{ mt: 2 }}>
             Requires authentication. Run <code>synapra auth login</code> first.

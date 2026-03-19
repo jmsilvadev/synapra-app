@@ -9,6 +9,7 @@ import {
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import BrandLockup from "../components/BrandLockup";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import { useI18n } from "../i18n";
 import { usePageSeo } from "../hooks/usePageSeo";
@@ -19,19 +20,19 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
 
   usePageSeo({
-    title: "Synapra | AI Agents Knowledge Layer for Enterprise Dev Teams",
+    title: "Elastra | The control plane for AI agents",
     description:
-      "Synapra centraliza contexto para agentes de IA em empresas: engenharia com IA, regras e policies, memoria organizacional e produtividade para developers.",
+      "Elastra e o control plane para agentes de IA em empresas: regras e policies, skills e commands, contexto compartilhado, memoria organizacional e reducao de custo operacional.",
     keywords:
-      "agentes de IA, IA para empresas, AI agents platform, enterprise AI, developer tools AI, contexto para LLM, engenharia de software com IA, copilots para devs",
+      "agentes de IA, AI agent control plane, IA para empresas, AI agents platform, enterprise AI, developer tools AI, regras e policies para agentes, skills e commands, contexto para LLM, engenharia de software com IA",
     path: "/",
-    imagePath: "/synapra_final_logo.svg",
+    imagePath: "/elastra_og_image.svg",
     structuredData: {
       "@context": "https://schema.org",
       "@type": "WebPage",
-      name: "Synapra",
+      name: "Elastra",
       description:
-        "Plataforma para contexto compartilhado de agentes de IA para empresas e times de engenharia.",
+        "Plataforma de controle para agentes de IA em empresas e times de engenharia.",
       url: `${window.location.origin}/`,
       about: ["AI agents", "Enterprise AI", "Developer productivity"],
     },
@@ -44,8 +45,7 @@ const LoginPage: React.FC = () => {
         justifyContent: "center",
         alignItems: "center",
         minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top left, rgba(0, 224, 255, 0.14), transparent 28%), #071417",
+        background: "#071417",
         px: 2,
       }}
     >
@@ -60,21 +60,25 @@ const LoginPage: React.FC = () => {
           textAlign: "center",
         }}
       >
-        <Box
-          component="img"
-          src={`${process.env.PUBLIC_URL || ""}/synapra_final_logo.svg`}
-          alt="Synapra"
-          sx={{
-            display: "block",
-            width: "100%",
-            maxWidth: 520,
-            mx: "auto",
-            mb: 4,
-            borderRadius: 3,
-          }}
-        />
+        <Box sx={{ display: "flex", justifyContent: "center", mb: 6 }}>
+          <BrandLockup
+            iconSize={58}
+            titleVariant="h4"
+            titleSize={{ xs: "2rem", sm: "2.25rem" }}
+            subtitleSize={{ xs: "0.92rem", sm: "1rem" }}
+            maxWidth={420}
+          />
+        </Box>
 
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 3 }}>
+          <Box sx={{ mb: 1 }}>
+            <Typography variant="h5" sx={{ fontWeight: 800, mb: 1.25 }}>
+              Organizations do not buy context alone.
+            </Typography>
+            <Typography color="text.secondary">
+              They buy control, consistency and cost reduction. Context is part of how you deliver that.
+            </Typography>
+          </Box>
           <Button
             variant="outlined"
             startIcon={<PsychologyIcon />}
@@ -89,7 +93,7 @@ const LoginPage: React.FC = () => {
             onClick={() => navigate("/how-it-works")}
             sx={{ py: 1.5 }}
           >
-            How Synapra works
+            How Elastra works
           </Button>
           <Button
             variant="outlined"

@@ -56,7 +56,7 @@ export function usePageSeo(config: SeoConfig) {
     const base = window.location.origin;
     const path = config.path || window.location.pathname;
     const canonicalUrl = new URL(path, base).toString();
-    const imageUrl = new URL(config.imagePath || "/synapra_og_image.svg", base).toString();
+    const imageUrl = new URL(config.imagePath || "/elastra_og_image.svg", base).toString();
     const htmlLang = (document.documentElement.lang || "en-US").replace("-", "_");
 
     document.title = config.title;
@@ -68,21 +68,21 @@ export function usePageSeo(config: SeoConfig) {
         "agentes de IA, IA para empresas, AI agents, enterprise AI, contexto para LLM, developer productivity, engenharia de software com IA"
     );
     upsertMetaByName("robots", "index, follow");
-    upsertMetaByName("author", "Synapra");
-    upsertMetaByName("twitter:site", "@synapra");
-    upsertMetaByName("twitter:creator", "@synapra");
+    upsertMetaByName("author", "Elastra");
+    upsertMetaByName("twitter:site", "@elastra_ai");
+    upsertMetaByName("twitter:creator", "@elastra_ai");
     upsertMetaByName("twitter:url", canonicalUrl);
     upsertMetaByName("twitter:image", imageUrl);
-    upsertMetaByName("twitter:image:alt", "Synapra");
+    upsertMetaByName("twitter:image:alt", "Elastra");
 
     upsertMetaByProperty("og:type", config.type || "website");
-    upsertMetaByProperty("og:site_name", "Synapra");
+    upsertMetaByProperty("og:site_name", "Elastra");
     upsertMetaByProperty("og:locale", htmlLang);
     upsertMetaByProperty("og:title", config.title);
     upsertMetaByProperty("og:description", config.description);
     upsertMetaByProperty("og:url", canonicalUrl);
     upsertMetaByProperty("og:image", imageUrl);
-    upsertMetaByProperty("og:image:alt", "Synapra");
+    upsertMetaByProperty("og:image:alt", "Elastra");
     upsertMetaByProperty("og:image:type", "image/svg+xml");
     upsertMetaByProperty("og:image:width", "1200");
     upsertMetaByProperty("og:image:height", "630");
