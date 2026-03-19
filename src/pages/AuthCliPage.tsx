@@ -3,6 +3,7 @@ import { Box, Typography, Button, Alert, CircularProgress, Divider } from "@mui/
 import { Google as GoogleIcon } from "@mui/icons-material";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import BrandLockup from "../components/BrandLockup";
 import { auth } from "../service/firebase";
 import { loginAdminWithFirebase } from "../services/adminService";
 import { setAdminToken } from "../services/apiClient";
@@ -116,7 +117,7 @@ const AuthCliPage: React.FC = () => {
         justifyContent: "center",
         alignItems: "center",
         minHeight: "100vh",
-        background: "radial-gradient(circle at top left, rgba(0, 224, 255, 0.14), transparent 28%), #071417",
+        background: "#071417",
         px: 2,
       }}
     >
@@ -128,26 +129,22 @@ const AuthCliPage: React.FC = () => {
           textAlign: "center",
         }}
       >
-        <Box
-          component="img"
-          src={`${process.env.PUBLIC_URL || ""}/synapra_final_logo.svg`}
-          alt="Synapra"
-          sx={{
-            display: "block",
-            width: "100%",
-            maxWidth: 320,
-            mx: "auto",
-            mb: 3,
-            borderRadius: 2,
-          }}
-        />
+        <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+          <BrandLockup
+            iconSize={58}
+            titleVariant="h4"
+            titleSize={{ xs: "2rem", sm: "2.15rem" }}
+            subtitleSize={{ xs: "0.92rem", sm: "1rem" }}
+            maxWidth={420}
+          />
+        </Box>
 
         <Typography variant="h5" sx={{ mb: 1, fontWeight: 600, color: "#E6F7F7" }}>
           CLI Authentication
         </Typography>
 
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Authenticate to use Synapra with your AI agents
+          Authenticate to use Elastra with your AI agents
         </Typography>
 
         {error && (

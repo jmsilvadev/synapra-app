@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <clipPath id="icon-card">
+      <rect x="6" y="4" width="52" height="56" rx="16" ry="16" />
+    </clipPath>
+  </defs>
+  <rect x="6" y="4" width="52" height="56" rx="16" ry="16" fill="#E2E8F01F" stroke="#E2E8F029" />
+  <image
+    href="logo_only.svg"
+    x="-6"
+    y="-3"
+    width="76"
+    height="82"
+    preserveAspectRatio="xMidYMid slice"
+    clip-path="url(#icon-card)"
+  />
+</svg>

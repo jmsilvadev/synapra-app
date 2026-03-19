@@ -4,7 +4,7 @@ import {
   Business as OrganizationIcon,
   Folder as FolderIcon,
   Storage as NamespaceIcon,
-  Source as RepositoryIcon,
+  GitHub as RepositoryIcon,
   Policy as PolicyIcon,
   Refresh as RefreshIcon,
   Delete as DeleteIcon,
@@ -44,7 +44,9 @@ import { useI18n } from "../i18n";
 import { extractErrorMessage } from "../services/apiClient";
 import {
   getOrganizationRules,
+  getCurrentUserRules,
   updateOrganizationRules,
+  updateCurrentUserRules,
   listProjectRules,
   getProjectRules,
   updateProjectRules,
@@ -60,13 +62,13 @@ import {
   getWatchSettings,
   upsertWatchSettings,
 } from "../services/adminService";
-import type { ProjectRuleSummary, NamespaceRuleSummary, RepositoryRuleSummary, WatchSettings } from "../types/admin";
+import type { ProjectRuleSummary, NamespaceRuleSummary, RepositoryRuleSummary, UserRules, WatchSettings } from "../types/admin";
 
 function isNotFoundError(error: unknown) {
   return axios.isAxiosError(error) && error.response?.status === 404;
 }
 
-type RulesTab = "organization" | "projects" | "namespaces" | "repositories";
+type RulesTab = "user" | "organization" | "projects" | "namespaces" | "repositories";
 
 interface RuleItem {
   uuid: string;
@@ -76,11 +78,14 @@ interface RuleItem {
 }
 
 const RulesPoliciesPage: React.FC = () => {
-  const { currentOrganizationId } = useAuth();
+  const { currentOrganizationId, user } = useAuth();
   const { t } = useI18n();
+  const isViewer = String(user?.role || "").toLowerCase() === "viewer";
 
-  const [activeTab, setActiveTab] = useState<RulesTab>("organization");
+  const [activeTab, setActiveTab] = useState<RulesTab>(isViewer ? "user" : "organization");
 
+  const [userRules, setUserRules] = useState("");
+  const [userRulesMeta, setUserRulesMeta] = useState<UserRules | null>(null);
   const [organizationRules, setOrganizationRules] = useState("");
   const [projectList, setProjectList] = useState<ProjectRuleSummary[]>([]);
   const [namespaceList, setNamespaceList] = useState<NamespaceRuleSummary[]>([]);
@@ -131,6 +136,20 @@ const RulesPoliciesPage: React.FC = () => {
         throw err;
       }
       setOrganizationRules("");
+    }
+  }, []);
+
+  const loadCurrentUserRules = useCallback(async (clientId: string) => {
+    try {
+      const rules = await getCurrentUserRules(clientId);
+      setUserRules(rules.rules_markdown || "");
+      setUserRulesMeta(rules);
+    } catch (err) {
+      if (!isNotFoundError(err)) {
+        throw err;
+      }
+      setUserRules("");
+      setUserRulesMeta(null);
     }
   }, []);
 
@@ -206,6 +225,19 @@ const RulesPoliciesPage: React.FC = () => {
     setSuccess(null);
 
     try {
+      await loadCurrentUserRules(clientId);
+      if (isViewer) {
+        setProjectList([]);
+        setNamespaceList([]);
+        setRepositoryList([]);
+        setSelectedProjectUuid("");
+        setSelectedNamespaceUuid("");
+        setSelectedRepositoryUuid("");
+        setProjectRules("");
+        setNamespaceRules("");
+        setRepositoryRules("");
+        return;
+      }
       await loadOrganizationRules(clientId);
       const [projects, namespaces, repos] = await Promise.all([
         loadProjectList(clientId),
@@ -241,7 +273,7 @@ const RulesPoliciesPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [loadOrganizationRules, loadProjectList, loadNamespaceList, loadRepositoryList, loadProjectRulesContent, loadNamespaceRulesContent, loadRepositoryRulesContent, t]);
+  }, [isViewer, loadCurrentUserRules, loadOrganizationRules, loadProjectList, loadNamespaceList, loadRepositoryList, loadProjectRulesContent, loadNamespaceRulesContent, loadRepositoryRulesContent, t]);
 
   useEffect(() => {
     const load = async () => {
@@ -253,6 +285,33 @@ const RulesPoliciesPage: React.FC = () => {
     };
     void load();
   }, [currentOrganizationId, loadAllData]);
+
+  useEffect(() => {
+    setActiveTab(isViewer ? "user" : "organization");
+  }, [isViewer]);
+
+  const handleSaveUserRules = async () => {
+    if (!currentOrganizationId) return;
+    if (!userRules.trim()) {
+      setError(t("rules.validation.user_empty"));
+      setSuccess(null);
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const response = await updateCurrentUserRules(currentOrganizationId, userRules);
+      setUserRules(response.rules_markdown || "");
+      setUserRulesMeta(response);
+      setSuccess(t("rules.success.user_saved"));
+    } catch (err) {
+      setError(extractErrorMessage(err, t("rules.user_save")));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSaveOrganizationRules = async () => {
     if (!currentOrganizationId) return;
@@ -526,13 +585,48 @@ const RulesPoliciesPage: React.FC = () => {
             },
           }}
         >
-          <Tab value="organization" icon={<OrganizationIcon />} iconPosition="start" label={t("rules.organization_tab")} />
-          <Tab value="projects" icon={<FolderIcon />} iconPosition="start" label={t("rules.projects_tab", { count: projectList.length })} />
-          <Tab value="namespaces" icon={<NamespaceIcon />} iconPosition="start" label={t("rules.namespaces_tab", { count: namespaceList.length })} />
-          <Tab value="repositories" icon={<RepositoryIcon />} iconPosition="start" label={t("rules.repositories_tab", { count: repositoryList.length })} />
+          <Tab value="user" icon={<PolicyIcon />} iconPosition="start" label={t("rules.user_tab")} />
+          {!isViewer && <Tab value="organization" icon={<OrganizationIcon />} iconPosition="start" label={t("rules.organization_tab")} />}
+          {!isViewer && <Tab value="projects" icon={<FolderIcon />} iconPosition="start" label={t("rules.projects_tab", { count: projectList.length })} />}
+          {!isViewer && <Tab value="namespaces" icon={<NamespaceIcon />} iconPosition="start" label={t("rules.namespaces_tab", { count: namespaceList.length })} />}
+          {!isViewer && <Tab value="repositories" icon={<RepositoryIcon />} iconPosition="start" label={t("rules.repositories_tab", { count: repositoryList.length })} />}
         </Tabs>
 
         <Box sx={{ p: 3 }}>
+          {activeTab === "user" && (
+            <Stack spacing={2}>
+              <Stack direction="row" alignItems="flex-start" spacing={2}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="h6">{t("rules.user_title")}</Typography>
+                  <Typography color="text.secondary" variant="body2">{t("rules.user_desc")}</Typography>
+                  {userRulesMeta?.updated_at && (
+                    <Typography color="text.secondary" variant="caption" sx={{ display: "block", mt: 1 }}>
+                      {t("rules.user_updated_at", { value: userRulesMeta.updated_at })}
+                    </Typography>
+                  )}
+                </Box>
+                <Tooltip title={t("common.reload")}>
+                  <IconButton onClick={() => currentOrganizationId && void loadCurrentUserRules(currentOrganizationId)} disabled={saving}>
+                    <RefreshIcon />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+              <TextField
+                multiline
+                minRows={12}
+                fullWidth
+                value={userRules}
+                onChange={(e) => setUserRules(e.target.value)}
+                placeholder={t("rules.user_placeholder")}
+              />
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Button variant="contained" onClick={handleSaveUserRules} disabled={saving || !userRules.trim()}>
+                  {saving ? t("rules.saving") : t("rules.user_save")}
+                </Button>
+              </Box>
+            </Stack>
+          )}
+
           {activeTab === "organization" && (
             <Stack spacing={2}>
               <Stack direction="row" alignItems="flex-start" spacing={2}>

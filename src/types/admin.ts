@@ -20,8 +20,11 @@ export type User = {
   picture_url?: string;
   active: boolean;
   last_login_at?: string;
+  last_access_at?: string;
   created_at?: string;
   updated_at?: string;
+  max_devices_override?: number;
+  effective_max_devices?: number;
 };
 
 export type Invitation = {
@@ -146,6 +149,14 @@ export type Plan = {
 export type OrganizationRules = {
   organization_id: string;
   rules_markdown: string;
+};
+
+export type UserRules = {
+  organization_id: string;
+  user_id: string;
+  rules_markdown: string;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type SkillDefinition = {
@@ -277,11 +288,19 @@ export type SynapraMetrics = {
 
 export type OrganizationSettings = {
   organization_id: string;
-  website_url?: string;
-  support_email?: string;
-  default_project_id?: string;
-  default_namespace?: string;
-  allowed_email_domain?: string;
+  name?: string;
+  legal_name?: string;
+  billing_email?: string;
+  contact_name?: string;
+  vat_number?: string;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  postal_code?: string;
+  country_code?: string;
+  default_max_devices_per_user?: number;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type BillingProfile = {

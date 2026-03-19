@@ -63,7 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({ expanded, setExpanded }) => {
   ];
 
   const visibleMenuItems = isViewer
-    ? menuItems.filter((item) => ["/knowledge", "/getting-started", "/downloads", "/api"].includes(item.path))
+    ? menuItems.filter((item) => ["/knowledge", "/getting-started", "/downloads", "/api", "/rules-policies"].includes(item.path))
     : menuItems;
 
   return (

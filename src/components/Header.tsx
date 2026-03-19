@@ -9,6 +9,7 @@ import {
 } from "@mui/material";
 import { Menu, Logout } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
+import BrandLockup from "./BrandLockup";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useI18n } from "../i18n";
 
@@ -21,7 +22,6 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
   const { t } = useI18n();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const logoWidth = isMobile ? 160 : 200;
 
   return (
     <AppBar
@@ -38,17 +38,19 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
           <Menu />
         </IconButton>
         <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center", height: "100%" }}>
-          <Box
-            component="img"
-            src={`${process.env.PUBLIC_URL || ""}/synapra_final_logo.svg`}
-            alt="Synapra"
-            sx={{
-              width: logoWidth,
-              height: "auto",
-              display: "block",
-              my: "auto",
-            }}
-          />
+          <Box sx={{ my: "auto" }}>
+            <BrandLockup
+              align="left"
+              layout="row"
+              iconSize={isMobile ? 36 : 40}
+              framedIcon
+              titleVariant="h6"
+              titleSize={isMobile ? "1.35rem" : "1.5rem"}
+              subtitleSize={isMobile ? "0.68rem" : "0.78rem"}
+              titleColor="text.primary"
+              maxWidth={isMobile ? 250 : 320}
+            />
+          </Box>
         </Box>
         {user && (
           <Box sx={{ display: "flex", alignItems: "center" }}>

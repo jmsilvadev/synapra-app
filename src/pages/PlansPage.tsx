@@ -5,6 +5,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import HomeIcon from "@mui/icons-material/Home";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import BrandLockup from "../components/BrandLockup";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import { useI18n } from "../i18n";
 import { usePageSeo } from "../hooks/usePageSeo";
@@ -113,22 +114,22 @@ const PlansPage: React.FC = () => {
   });
 
   usePageSeo({
-    title: "Synapra Plans | Enterprise AI Pricing for Developers and Teams",
+    title: "Elastra Plans | Enterprise AI Pricing for Developers and Teams",
     description:
-      "Conheca os planos do Synapra para empresas e times de desenvolvimento com IA: precificacao transparente, capacidade SCU e escala de agentes de IA.",
+      "Conheca os planos do Elastra para empresas e times de desenvolvimento com IA: precificacao transparente, capacidade SCU e escala de agentes de IA.",
     keywords:
       "preco IA para empresas, planos AI agents, enterprise AI pricing, custo agentes de IA, developer AI platform pricing, SCU pricing",
     path: "/plans",
-    imagePath: "/synapra_final_logo.svg",
+    imagePath: "/elastra_og_image.svg",
     structuredData: {
       "@context": "https://schema.org",
       "@type": "WebPage",
-      name: "Synapra Plans",
-      description: "Pagina de planos e precificacao para uso de Synapra em times de desenvolvimento com IA.",
+      name: "Elastra Plans",
+      description: "Pagina de planos e precificacao para uso de Elastra em times de desenvolvimento com IA.",
       url: `${window.location.origin}/plans`,
       isPartOf: {
         "@type": "WebSite",
-        name: "Synapra",
+        name: "Elastra",
         url: window.location.origin,
       },
     },
@@ -274,8 +275,7 @@ const PlansPage: React.FC = () => {
       <Box
         sx={{
           minHeight: "100vh",
-          background:
-            "radial-gradient(circle at top left, rgba(0, 224, 255, 0.14), transparent 28%), #071417",
+          background: "#071417",
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
@@ -291,8 +291,7 @@ const PlansPage: React.FC = () => {
     <Box
       sx={{
         minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top left, rgba(0, 224, 255, 0.14), transparent 28%), #071417",
+        background: "#071417",
         px: 2,
         py: 4,
         position: "relative",
@@ -320,18 +319,15 @@ const PlansPage: React.FC = () => {
         </Snackbar>
 
         <Stack spacing={4} alignItems="center">
-          <Box
-            component="img"
-            src={`${process.env.PUBLIC_URL || ""}/synapra_final_logo.svg`}
-            alt="Synapra"
-            sx={{
-              display: "block",
-              width: "100%",
-              maxWidth: 420,
-              mx: "auto",
-              borderRadius: 3,
-            }}
-          />
+          <Box sx={{ display: "flex", justifyContent: "center", width: "100%" }}>
+            <BrandLockup
+              iconSize={58}
+              titleVariant="h4"
+              titleSize={{ xs: "2rem", md: "2.2rem" }}
+              subtitleSize={{ xs: "0.92rem", md: "1rem" }}
+              maxWidth={420}
+            />
+          </Box>
 
           <Box sx={{ textAlign: "center", color: "common.white" }}>
             <Typography variant="h3" gutterBottom>
@@ -531,7 +527,7 @@ const PlansPage: React.FC = () => {
               </Typography>
               <Typography color="text.secondary">
                 {t("plans.onboarding_success_hint", {
-                  defaultValue: "If you do not see the message, check your spam folder and search for Synapra in your mailbox.",
+                  defaultValue: "If you do not see the message, check your spam folder and search for Elastra in your mailbox.",
                 })}
               </Typography>
             </Stack>

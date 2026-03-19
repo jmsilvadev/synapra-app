@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Elastra social preview">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#071417" />
+      <stop offset="100%" stop-color="#0D1C20" />
+    </linearGradient>
+    <radialGradient id="glow" cx="0.2" cy="0.15" r="0.9">
+      <stop offset="0%" stop-color="#00E0FF" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#00E0FF" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)" />
+  <rect width="1200" height="630" fill="url(#glow)" />
+  <g transform="translate(80,90)">
+    <image href="/elastra_logo_full.svg" x="0" y="0" width="360" height="120" preserveAspectRatio="xMinYMin meet"/>
+  </g>
+  <g transform="translate(80,250)">
+    <text x="0" y="0" fill="#E6F7F7" font-size="58" font-weight="700" font-family="Inter, Arial, sans-serif">
+      The control plane for AI agents
+    </text>
+    <text x="0" y="74" fill="#8DECF3" font-size="34" font-weight="400" font-family="Inter, Arial, sans-serif">
+      Rules, policies, skills, commands and shared context
+    </text>
+  </g>
+</svg>

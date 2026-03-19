@@ -1,55 +1,59 @@
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  Badge,
+  Box,
   Button,
   Card,
   CardContent,
   CardHeader,
+  Chip,
   CircularProgress,
   Container,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
+  IconButton,
   MenuItem,
+  Paper,
   Select,
+  Snackbar,
   Stack,
-  TextField,
-  Typography,
+  Switch,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  Chip,
-  Box,
-  Snackbar,
+  TextField,
   Tooltip,
-  Badge,
-  Switch,
-  FormControlLabel,
+  Typography,
 } from "@mui/material";
 import {
-  Person as PersonIcon,
-  Email as EmailIcon,
   Add as AddIcon,
+  Devices as DevicesIcon,
+  Email as EmailIcon,
   HourglassEmpty as HourglassEmptyIcon,
   Mail as MailIcon,
+  Person as PersonIcon,
   Refresh as RefreshIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
 import {
+  createInvitation,
+  getOrganizationSettings,
   listInvitations,
   listUsers,
-  createInvitation,
   resendInvitation,
+  updateOrganizationSettings,
   updateUserRole,
 } from "../services/adminService";
 import { extractErrorMessage } from "../services/apiClient";
-import type { Invitation, User } from "../types/admin";
+import type { Invitation, OrganizationSettings, User } from "../types/admin";
 
 function formatDate(locale: string, value?: string) {
   if (!value) return "-";
@@ -88,20 +92,27 @@ function getRoleColor(role: string): "success" | "warning" | "default" | "error"
   }
 }
 
+type DeviceLimitDrafts = Record<string, string>;
+
 const MembersPage: React.FC = () => {
   const { currentOrganizationId, user } = useAuth();
-  const { t, locale } = useI18n();
+  const { locale } = useI18n();
   const [users, setUsers] = useState<User[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [organizationSettings, setOrganizationSettings] = useState<OrganizationSettings | null>(null);
+  const [defaultDevicesInput, setDefaultDevicesInput] = useState("1");
+  const [deviceLimitDrafts, setDeviceLimitDrafts] = useState<DeviceLimitDrafts>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingDefaultDevices, setSavingDefaultDevices] = useState(false);
+  const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
+  const [deviceModalUser, setDeviceModalUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({ email: "", role: "user" });
 
-  const isAdmin =
-    user?.role === "admin" || user?.role === "owner";
+  const isAdmin = user?.role === "admin" || user?.role === "owner";
 
   useEffect(() => {
     const load = async () => {
@@ -110,12 +121,25 @@ const MembersPage: React.FC = () => {
         return;
       }
       try {
-        const [usersData, invitationsData] = await Promise.all([
+        const [usersData, invitationsData, settingsData] = await Promise.all([
           listUsers(currentOrganizationId).catch(() => []),
           listInvitations(currentOrganizationId).catch(() => []),
+          getOrganizationSettings(currentOrganizationId).catch(() => null),
         ]);
         setUsers(usersData);
         setInvitations(invitationsData);
+        const resolvedSettings = settingsData || {
+          organization_id: currentOrganizationId,
+          default_max_devices_per_user: 1,
+        };
+        setOrganizationSettings(resolvedSettings);
+        setDefaultDevicesInput(String(resolvedSettings.default_max_devices_per_user || 1));
+        setDeviceLimitDrafts(
+          usersData.reduce<DeviceLimitDrafts>((acc, item) => {
+            acc[item.id] = item.max_devices_override ? String(item.max_devices_override) : "";
+            return acc;
+          }, {})
+        );
       } catch (err) {
         setError(extractErrorMessage(err, "Failed to load members"));
       } finally {
@@ -143,12 +167,7 @@ const MembersPage: React.FC = () => {
       setOpenDialog(false);
       setSuccess(`Invitation sent to ${formData.email}`);
     } catch (err) {
-      setError(
-        extractErrorMessage(
-          err,
-          "Failed to send invitation"
-        )
-      );
+      setError(extractErrorMessage(err, "Failed to send invitation"));
     } finally {
       setSaving(false);
     }
@@ -160,17 +179,10 @@ const MembersPage: React.FC = () => {
     setSuccess(null);
     try {
       const updatedInvitation = await resendInvitation(invitationId);
-      setInvitations((prev) =>
-        prev.map((inv) => (inv.id === invitationId ? updatedInvitation : inv))
-      );
+      setInvitations((prev) => prev.map((inv) => (inv.id === invitationId ? updatedInvitation : inv)));
       setSuccess(`Invitation resent to ${email}`);
     } catch (err) {
-      setError(
-        extractErrorMessage(
-          err,
-          "Failed to resend invitation"
-        )
-      );
+      setError(extractErrorMessage(err, "Failed to resend invitation"));
     } finally {
       setSaving(false);
     }
@@ -187,11 +199,88 @@ const MembersPage: React.FC = () => {
         active: nextActive,
       });
       setUsers((prev) => prev.map((u) => (u.id === targetUser.id ? { ...u, ...updated } : u)));
+      setDeviceLimitDrafts((prev) => ({
+        ...prev,
+        [targetUser.id]: updated.max_devices_override ? String(updated.max_devices_override) : "",
+      }));
       setSuccess(`${targetUser.email} ${nextActive ? "activated" : "deactivated"}`);
     } catch (err) {
       setError(extractErrorMessage(err, "Failed to update member status"));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveDefaultDevices = async () => {
+    if (!currentOrganizationId || !organizationSettings) return;
+    const parsed = Number(defaultDevicesInput);
+    if (!Number.isInteger(parsed) || parsed < 1) {
+      setError("Default device limit must be a whole number greater than 0.");
+      return;
+    }
+    setSavingDefaultDevices(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const updated = await updateOrganizationSettings(currentOrganizationId, {
+        ...organizationSettings,
+        default_max_devices_per_user: parsed,
+      });
+      setOrganizationSettings(updated);
+      setDefaultDevicesInput(String(updated.default_max_devices_per_user || parsed));
+      setUsers((prev) =>
+        prev.map((member) =>
+          member.max_devices_override
+            ? member
+            : { ...member, effective_max_devices: updated.default_max_devices_per_user || parsed }
+        )
+      );
+      setSuccess("Default device limit updated.");
+    } catch (err) {
+      setError(extractErrorMessage(err, "Failed to update default device limit"));
+    } finally {
+      setSavingDefaultDevices(false);
+    }
+  };
+
+  const handleSaveUserDeviceLimit = async (targetUser: User) => {
+    if (!currentOrganizationId) return false;
+    const draft = (deviceLimitDrafts[targetUser.id] || "").trim();
+    let payload: { role: string; active: boolean; max_devices_override?: number | null; update_max_devices_override?: boolean } = {
+      role: targetUser.role || "user",
+      active: !!targetUser.active,
+      update_max_devices_override: true,
+    };
+
+    if (draft === "") {
+      payload = { ...payload, max_devices_override: null };
+    } else {
+      const parsed = Number(draft);
+      if (!Number.isInteger(parsed) || parsed < 1) {
+        setError("User device limit must be blank or a whole number greater than 0.");
+        return false;
+      }
+      payload = { ...payload, max_devices_override: parsed };
+    }
+
+    setSavingUserId(targetUser.id);
+    setError(null);
+    setSuccess(null);
+    try {
+      const updated = await updateUserRole(currentOrganizationId, targetUser.id, payload);
+      setUsers((prev) => prev.map((u) => (u.id === targetUser.id ? { ...u, ...updated } : u)));
+      setDeviceLimitDrafts((prev) => ({
+        ...prev,
+        [targetUser.id]: updated.max_devices_override ? String(updated.max_devices_override) : "",
+      }));
+      setDeviceModalUser((current) => (current?.id === targetUser.id ? { ...current, ...updated } : current));
+      setSuccess(`Device limit updated for ${targetUser.email}.`);
+      return true;
+    } catch (err) {
+      setError(extractErrorMessage(err, "Failed to update user device limit"));
+      return false;
+    } finally {
+      setSavingUserId(null);
     }
   };
 
@@ -204,12 +293,10 @@ const MembersPage: React.FC = () => {
   }
 
   if (!isAdmin) {
-    return (
-      <Alert severity="error">
-        You don't have permission to manage members.
-      </Alert>
-    );
+    return <Alert severity="error">You don't have permission to manage members.</Alert>;
   }
+
+  const resolvedDefaultLimit = organizationSettings?.default_max_devices_per_user || 1;
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -218,11 +305,7 @@ const MembersPage: React.FC = () => {
           <Typography variant="h4" component="h1" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <PersonIcon /> Members
           </Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setOpenDialog(true)}
-          >
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenDialog(true)}>
             Invite Member
           </Button>
         </Stack>
@@ -234,15 +317,31 @@ const MembersPage: React.FC = () => {
         )}
 
         {success && (
-          <Snackbar
-            open={!!success}
-            autoHideDuration={6000}
-            onClose={() => setSuccess(null)}
-            message={success}
-          />
+          <Snackbar open={!!success} autoHideDuration={6000} onClose={() => setSuccess(null)} message={success} />
         )}
 
-        {/* Active Users */}
+        <Card>
+          <CardHeader title="Device Policy" subheader="Set the organization default and override it for specific users when needed." />
+          <CardContent>
+            <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ xs: "stretch", md: "center" }}>
+              <TextField
+                label="Default devices per user"
+                type="number"
+                value={defaultDevicesInput}
+                onChange={(event) => setDefaultDevicesInput(event.target.value)}
+                inputProps={{ min: 1, step: 1 }}
+                sx={{ maxWidth: 260 }}
+              />
+              <Button variant="contained" onClick={handleSaveDefaultDevices} disabled={savingDefaultDevices}>
+                {savingDefaultDevices ? <CircularProgress size={20} /> : "Save Default"}
+              </Button>
+              <Typography color="text.secondary">
+                Users without an override inherit <strong>{resolvedDefaultLimit}</strong> device{resolvedDefaultLimit === 1 ? "" : "s"}.
+              </Typography>
+            </Stack>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader title="Active Members" />
           <CardContent>
@@ -257,38 +356,68 @@ const MembersPage: React.FC = () => {
                       <TableCell>Email</TableCell>
                       <TableCell>Role</TableCell>
                       <TableCell>Status</TableCell>
-                      <TableCell>Joined</TableCell>
+                      <TableCell>Max Devices</TableCell>
+                      <TableCell>Last Access</TableCell>
+                      <TableCell align="right" />
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {users.map((u) => (
-                      <TableRow key={u.id} hover>
-                        <TableCell>{u.name}</TableCell>
-                        <TableCell>{u.email}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={roleLabel(u.role)}
-                            color={getRoleColor(u.role)}
-                            size="small"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <FormControlLabel
-                            control={
-                              <Switch
-                                checked={!!u.active}
-                                disabled={saving || u.id === user?.id}
-                                onChange={(_, checked) => {
-                                  void handleToggleUserActive(u, checked);
-                                }}
-                              />
-                            }
-                            label={u.active ? "Active" : "Inactive"}
-                          />
-                        </TableCell>
-                        <TableCell>{formatDate(locale, u.created_at)}</TableCell>
-                      </TableRow>
-                    ))}
+                    {users.map((u) => {
+                      const usesDefault = !u.max_devices_override;
+                      return (
+                        <TableRow key={u.id} hover>
+                          <TableCell>{u.name}</TableCell>
+                          <TableCell>{u.email}</TableCell>
+                          <TableCell>
+                            <Chip label={roleLabel(u.role)} color={getRoleColor(u.role)} size="small" />
+                          </TableCell>
+                          <TableCell>
+                            <FormControlLabel
+                              control={
+                                <Switch
+                                  checked={!!u.active}
+                                  disabled={saving || u.id === user?.id}
+                                  onChange={(_, checked) => {
+                                    void handleToggleUserActive(u, checked);
+                                  }}
+                                />
+                              }
+                              label={u.active ? "Active" : "Inactive"}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Typography>{u.effective_max_devices || resolvedDefaultLimit}</Typography>
+                              {usesDefault ? (
+                                <Chip size="small" label="Default" variant="outlined" />
+                              ) : (
+                                <Chip size="small" label="Override" color="primary" variant="outlined" />
+                              )}
+                            </Stack>
+                          </TableCell>
+                          <TableCell>{formatDate(locale, u.last_access_at || u.last_login_at)}</TableCell>
+                          <TableCell align="right">
+                            <Tooltip title="Edit device limit">
+                              <span>
+                                <IconButton
+                                  color="primary"
+                                  disabled={savingUserId === u.id}
+                                  onClick={() => {
+                                    setDeviceLimitDrafts((prev) => ({
+                                      ...prev,
+                                      [u.id]: u.max_devices_override ? String(u.max_devices_override) : "",
+                                    }));
+                                    setDeviceModalUser(u);
+                                  }}
+                                >
+                                  <DevicesIcon />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -296,7 +425,6 @@ const MembersPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Pending Invitations */}
         <Card>
           <CardHeader title="Pending Invitations" />
           <CardContent>
@@ -326,11 +454,7 @@ const MembersPage: React.FC = () => {
                             </Stack>
                           </TableCell>
                           <TableCell>
-                            <Chip
-                              label={roleLabel(inv.role)}
-                              color={getRoleColor(inv.role)}
-                              size="small"
-                            />
+                            <Chip label={roleLabel(inv.role)} color={getRoleColor(inv.role)} size="small" />
                           </TableCell>
                           <TableCell>{inv.invited_by_user_id || "-"}</TableCell>
                           <TableCell>
@@ -381,10 +505,8 @@ const MembersPage: React.FC = () => {
             )}
           </CardContent>
         </Card>
-
       </Stack>
 
-      {/* Invite Dialog */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Invite Member</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
@@ -401,10 +523,7 @@ const MembersPage: React.FC = () => {
               <Typography variant="body2" color="textSecondary">
                 Role
               </Typography>
-              <Select
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              >
+              <Select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })}>
                 <MenuItem value="user">User (Knowledge, Downloads, Getting Started)</MenuItem>
                 <MenuItem value="admin">Admin (Full access to organization)</MenuItem>
               </Select>
@@ -416,13 +535,52 @@ const MembersPage: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button
-            onClick={handleInvite}
-            variant="contained"
-            disabled={saving || !formData.email}
-            type="submit"
-          >
+          <Button onClick={handleInvite} variant="contained" disabled={saving || !formData.email} type="submit">
             {saving ? <CircularProgress size={24} /> : "Send Invitation"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!deviceModalUser} onClose={() => setDeviceModalUser(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {deviceModalUser ? `Device limit for ${deviceModalUser.email}` : "Device limit"}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Stack spacing={2}>
+            <Typography color="text.secondary">
+              Leave the field blank to inherit the organization default of {resolvedDefaultLimit} device{resolvedDefaultLimit === 1 ? "" : "s"}.
+            </Typography>
+            <TextField
+              label="Max devices"
+              type="number"
+              value={deviceModalUser ? deviceLimitDrafts[deviceModalUser.id] ?? "" : ""}
+              onChange={(event) => {
+                if (!deviceModalUser) return;
+                setDeviceLimitDrafts((prev) => ({
+                  ...prev,
+                  [deviceModalUser.id]: event.target.value,
+                }));
+              }}
+              inputProps={{ min: 1, step: 1 }}
+              placeholder={`Default (${resolvedDefaultLimit})`}
+              fullWidth
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeviceModalUser(null)}>Cancel</Button>
+          <Button
+            variant="contained"
+            disabled={!deviceModalUser || savingUserId === deviceModalUser.id}
+            onClick={async () => {
+              if (!deviceModalUser) return;
+              const saved = await handleSaveUserDeviceLimit(deviceModalUser);
+              if (saved) {
+                setDeviceModalUser(null);
+              }
+            }}
+          >
+            {deviceModalUser && savingUserId === deviceModalUser.id ? <CircularProgress size={20} /> : "Save"}
           </Button>
         </DialogActions>
       </Dialog>
