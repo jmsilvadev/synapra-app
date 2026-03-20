@@ -1,0 +1,15 @@
+{
+  "layers": [],
+  "merged_markdown": "",
+  "namespace_uuid": "759a7c0d-d729-46d6-9abd-8e68c0c19039",
+  "organization_id": "11111111-1111-1111-1111-111111111111",
+  "precedence": [
+    "repository",
+    "namespace",
+    "project",
+    "user",
+    "organization"
+  ],
+  "project_uuid": "232ea6ee-8f92-5a7f-af32-dc35d58e3177",
+  "user_id": "31233344-fc91-4308-83d2-624617124f13"
+}

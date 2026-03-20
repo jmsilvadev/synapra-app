@@ -56,7 +56,7 @@ const BrandLockup: React.FC<BrandLockupProps> = ({
         <Box
           component="img"
           src={`${process.env.PUBLIC_URL || ""}/logo_only.svg`}
-          alt="Elastra"
+          alt="Elastra AI"
           sx={{
             width: "100%",
             height: "100%",
@@ -88,7 +88,7 @@ const BrandLockup: React.FC<BrandLockupProps> = ({
             transformOrigin: "top center",
           }}
         >
-          Elastra
+          Elastra AI
         </Typography>
         <Typography
           sx={{

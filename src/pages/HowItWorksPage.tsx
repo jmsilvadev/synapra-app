@@ -32,24 +32,24 @@ const HowItWorksPage: React.FC = () => {
   const navigate = useNavigate();
 
   usePageSeo({
-    title: "How Elastra Works | AI Agent Control Plane, Rules, Skills, Commands, Retrieval and MCP",
+    title: "How Elastra AI Works | AI Agent Control Plane, Rules, Skills, Commands, Retrieval and MCP",
     description:
-      "Understand the Elastra control plane: GitHub-aware sync, shared context retrieval across text vectors graph and memory, layered rules and policies, skills and commands, MCP connectivity, observability and enterprise control for AI engineering teams, with average savings of 40% in tokens and 40% in time.",
+      "Understand the Elastra AI control plane: GitHub-aware sync, shared context retrieval across text vectors graph and memory, layered rules and policies, skills and commands, MCP connectivity, observability and enterprise control for AI engineering teams, with average savings of 40% in tokens and 40% in time.",
     keywords:
-      "how Elastra works, AI agent control plane, AI agent runtime, hybrid retrieval architecture, GitHub webhook sync, MCP server architecture, code graph analysis, engineering rules for AI agents, agent skills and commands, AI developer platform architecture, enterprise AI operations, reduce agent token usage, reduce AI execution time",
+      "how Elastra AI works, AI agent control plane, AI agent runtime, hybrid retrieval architecture, GitHub webhook sync, MCP server architecture, code graph analysis, engineering rules for AI agents, agent skills and commands, AI developer platform architecture, enterprise AI operations, reduce agent token usage, reduce AI execution time",
     path: "/how-it-works",
     imagePath: "/elastra_og_image.svg",
     structuredData: [
       {
         "@context": "https://schema.org",
         "@type": "WebPage",
-        name: "How Elastra Works",
+        name: "How Elastra AI Works",
         description:
-          "Technical explanation of Elastra as the control plane for AI agents, including sync, indexing, retrieval, rules, policies, skills, commands, graph analysis, GitHub integration and MCP-based agent connectivity, with average savings of 40% in tokens and 40% in time.",
+          "Technical explanation of Elastra AI as the control plane for AI agents, including sync, indexing, retrieval, rules, policies, skills, commands, graph analysis, GitHub integration and MCP-based agent connectivity, with average savings of 40% in tokens and 40% in time.",
         url: `${window.location.origin}/how-it-works`,
         isPartOf: {
           "@type": "WebSite",
-          name: "Elastra",
+          name: "Elastra AI",
           url: window.location.origin,
         },
         about: [
@@ -63,16 +63,16 @@ const HowItWorksPage: React.FC = () => {
       {
         "@context": "https://schema.org",
         "@type": "TechArticle",
-        headline: "How Elastra Works",
+        headline: "How Elastra AI Works",
         description:
-          "Technical breakdown of Elastra as the operating control plane for AI software delivery, covering ingestion, graph, memory, rules, policies, skills, commands, GitHub sync and MCP execution.",
+          "Technical breakdown of Elastra AI as the operating control plane for AI software delivery, covering ingestion, graph, memory, rules, policies, skills, commands, GitHub sync and MCP execution.",
         author: {
           "@type": "Organization",
-          name: "Elastra",
+          name: "Elastra AI",
         },
         publisher: {
           "@type": "Organization",
-          name: "Elastra",
+          name: "Elastra AI",
         },
         mainEntityOfPage: `${window.location.origin}/how-it-works`,
       },
@@ -82,23 +82,23 @@ const HowItWorksPage: React.FC = () => {
         mainEntity: [
           {
             "@type": "Question",
-            name: "How does Elastra keep repository knowledge up to date?",
+            name: "How does Elastra AI keep repository knowledge up to date?",
             acceptedAnswer: {
               "@type": "Answer",
-              text: "Elastra uses sync workflows, watch settings, GitHub repository connections, GitHub App installation tokens and webhook-driven updates on pull requests and default-branch pushes to keep knowledge current.",
+              text: "Elastra AI uses sync workflows, watch settings, GitHub repository connections, GitHub App installation tokens and webhook-driven updates on pull requests and default-branch pushes to keep knowledge current.",
             },
           },
           {
             "@type": "Question",
-            name: "What does Elastra control for AI agents?",
+            name: "What does Elastra AI control for AI agents?",
             acceptedAnswer: {
               "@type": "Answer",
-              text: "Elastra controls how agents operate by combining shared context, code graph analysis, durable memory, layered rules and policies, reusable skills and commands, and consistent MCP-based execution flows.",
+              text: "Elastra AI controls how agents operate by combining shared context, code graph analysis, durable memory, layered rules and policies, reusable skills and commands, and consistent MCP-based execution flows.",
             },
           },
           {
             "@type": "Question",
-            name: "How do agents operate through Elastra?",
+            name: "How do agents operate through Elastra AI?",
             acceptedAnswer: {
               "@type": "Answer",
               text: "Agents connect through MCP tools, CLI-generated configuration and materialized instruction files so teams can enforce consistent behavior, operational rules and reusable workflows across local and hosted environments.",
@@ -166,7 +166,7 @@ const HowItWorksPage: React.FC = () => {
     },
     {
       icon: <HubIcon color="primary" />,
-      title: "2. Elastra normalizes project structure",
+      title: "2. Elastra AI normalizes project structure",
       description:
         "Projects, namespaces and repositories are mapped into a consistent internal model so knowledge stays scoped, queryable and operationally manageable.",
       bullets: [
@@ -201,7 +201,7 @@ const HowItWorksPage: React.FC = () => {
       icon: <RuleIcon color="primary" />,
       title: "5. Rules are resolved into one effective contract",
       description:
-        "Elastra merges rules and policies from shared and personal scopes so each agent receives the same engineering contract without manual copy-paste.",
+        "Elastra AI merges rules and policies from shared and personal scopes so each agent receives the same engineering contract without manual copy-paste.",
       bullets: [
         "organization to user precedence",
         "effective rules materialization",
@@ -212,7 +212,7 @@ const HowItWorksPage: React.FC = () => {
       icon: <SmartToyIcon color="primary" />,
       title: "6. Agents execute through MCP and CLI flows",
       description:
-        "Agents do not need raw repository dumps or one-off prompting. They operate through Elastra for context, graph, memory, rules, skills, commands and execution support when they need them.",
+        "Agents do not need raw repository dumps or one-off prompting. They operate through Elastra AI for context, graph, memory, rules, skills, commands and execution support when they need them.",
       bullets: [
         "MCP integrations across many clients",
         "CLI init, update and mcp install",
@@ -233,7 +233,7 @@ const HowItWorksPage: React.FC = () => {
   ];
 
   const technicalClaims = [
-    "Elastra is not only retrieval. It is the control plane for AI software delivery.",
+    "Elastra AI is not only retrieval. It is the control plane for AI software delivery.",
     "The platform narrows context at execution time while keeping agent behavior governed.",
     "GitHub, rules, policies, skills, commands, graph and auditability are part of the same operating surface.",
   ];
@@ -288,10 +288,10 @@ const HowItWorksPage: React.FC = () => {
             <Stack spacing={2.5}>
               <Chip label="Technical Product Architecture" color="primary" variant="outlined" sx={{ width: "fit-content" }} />
               <Typography variant="h2" sx={{ fontWeight: 900, maxWidth: 1080, lineHeight: 1.05 }}>
-                Elastra sits between your repositories and your agents so agent behavior becomes controllable, enforceable and operational.
+                Elastra AI sits between your repositories and your agents so agent behavior becomes controllable, enforceable and operational.
               </Typography>
               <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 980 }}>
-                Instead of replaying massive prompt history, Elastra keeps code, graph structure, memory, rules, policies, skills, commands and GitHub events inside one runtime layer. Agents query that layer through MCP and CLI workflows while organizations control how those agents behave.
+                Instead of replaying massive prompt history, Elastra AI keeps code, graph structure, memory, rules, policies, skills, commands and GitHub events inside one runtime layer. Agents query that layer through MCP and CLI workflows while organizations control how those agents behave.
               </Typography>
               <Box
                 sx={{
@@ -331,7 +331,7 @@ const HowItWorksPage: React.FC = () => {
                   Runtime model
                 </Typography>
                 <Typography color="text.secondary" sx={{ maxWidth: 1080 }}>
-                  Repository events and local sync workflows feed Elastra. Elastra indexes knowledge, resolves graph, rules, policies, skills and commands, then agents execute through that operational state with MCP and CLI-assisted materialization. The result is narrower prompts, stronger consistency and better organizational control.
+                  Repository events and local sync workflows feed Elastra AI. Elastra AI indexes knowledge, resolves graph, rules, policies, skills and commands, then agents execute through that operational state with MCP and CLI-assisted materialization. The result is narrower prompts, stronger consistency and better organizational control.
                 </Typography>
               </Box>
 
@@ -385,7 +385,7 @@ const HowItWorksPage: React.FC = () => {
                 >
                   <Stack spacing={1.75}>
                     <Typography variant="overline" sx={{ color: "primary.main", fontWeight: 800, letterSpacing: 1.2 }}>
-                      SYNAPRA RUNTIME
+                      ELASTRA RUNTIME
                     </Typography>
                     <Typography variant="h5" sx={{ fontWeight: 850 }}>
                       The control plane between code and agent execution
@@ -473,7 +473,7 @@ const HowItWorksPage: React.FC = () => {
               >
                 {[
                   "Repositories emit changes through sync jobs, PRs and default-branch pushes.",
-                  "Elastra assembles one operational state from knowledge, graph, memory, rules, policies, skills and commands.",
+                  "Elastra AI assembles one operational state from knowledge, graph, memory, rules, policies, skills and commands.",
                   "Agents execute with only the context they need, with observability and control attached.",
                 ].map((label) => (
                   <Box
@@ -504,10 +504,10 @@ const HowItWorksPage: React.FC = () => {
             }}
           >
             <Typography variant="h4" sx={{ fontWeight: 850, mb: 1.5 }}>
-              Control signals Elastra can combine
+              Control signals Elastra AI can combine
             </Typography>
             <Typography color="text.secondary" sx={{ maxWidth: 980, mb: 3 }}>
-              Agent behavior is not governed by one prompt or one retrieval method. Elastra combines several signals so execution stays narrower, better grounded and easier to control.
+              Agent behavior is not governed by one prompt or one retrieval method. Elastra AI combines several signals so execution stays narrower, better grounded and easier to control.
             </Typography>
             <Grid container spacing={2.5}>
               {contextSignals.map((signal) => (
@@ -630,7 +630,7 @@ const HowItWorksPage: React.FC = () => {
                 Want the system view, not just the feature list?
               </Typography>
               <Typography color="text.secondary" sx={{ maxWidth: 900 }}>
-                Elastra exists to turn AI tooling into an operational control plane: connected to GitHub, grounded in code structure, governed by rules and policies, extended by skills and commands, and visible through logs, usage and billing controls.
+                Elastra AI exists to turn AI tooling into an operational control plane: connected to GitHub, grounded in code structure, governed by rules and policies, extended by skills and commands, and visible through logs, usage and billing controls.
               </Typography>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
                 <Button variant="contained" size="large" onClick={() => navigate("/plans")}>

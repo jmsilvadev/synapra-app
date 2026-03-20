@@ -19,6 +19,7 @@ import {
 } from "@mui/icons-material";
 import { useI18n } from "../i18n";
 import { apiBaseURL } from "../services/apiClient";
+import CommandBlock from "../components/CommandBlock";
 
 const DOWNLOADS = [
   {
@@ -53,7 +54,7 @@ const DownloadsPage: React.FC = () => {
   const handleDownload = (type: "cli" | "mcp", os: string, arch: string) => {
     const token = localStorage.getItem("console_token");
     const url = `${apiBaseURL}/v1/downloads/${type}?os=${os}&arch=${arch}`;
-    
+
     if (token) {
       window.open(`${url}&token=${token}`, "_blank");
     } else {
@@ -76,11 +77,9 @@ const DownloadsPage: React.FC = () => {
           <Typography variant="h6" gutterBottom>
             {t("downloads.quick_install")}
           </Typography>
-          <Box sx={{ bgcolor: "action.hover", p: 2, borderRadius: 1, fontFamily: "monospace", fontSize: "0.875rem" }}>
-            curl -fsSL https://api.elastra.ai/v1/downloads/install.sh | bash
-          </Box>
+          <CommandBlock lines={[`curl -fsSL ${apiBaseURL}/v1/downloads/install.sh | bash`]} />
           <Alert severity="info" sx={{ mt: 2 }}>
-            Requires authentication. Run <code>synapra auth login</code> first.
+            Requires authentication. Run <code>elastra auth login</code> first.
           </Alert>
         </CardContent>
       </Card>
@@ -133,39 +132,19 @@ const DownloadsPage: React.FC = () => {
       <Card sx={{ mt: 4 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            {t("downloads.mcp_server")}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {t("downloads.mcp_desc")}
-          </Typography>
-          <Box sx={{ bgcolor: "action.hover", p: 2, borderRadius: 1, fontFamily: "monospace", fontSize: "0.875rem" }}>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              {t("downloads.install_mcp")}:
-            </Typography>
-            <Box>synapra mcp install</Box>
-          </Box>
-        </CardContent>
-      </Card>
-
-      <Card sx={{ mt: 4 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
             {t("downloads.verify")}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {t("downloads.verify_desc")}
           </Typography>
-          <Box sx={{ bgcolor: "action.hover", p: 2, borderRadius: 1, fontFamily: "monospace", fontSize: "0.875rem" }}>
-            <Box>synapra --version</Box>
-            <Box sx={{ mt: 1 }}>synapra-mcp --version</Box>
-          </Box>
+          <CommandBlock lines={["elastra --version", "elastra-mcp --version"]} />
         </CardContent>
       </Card>
 
       <Box sx={{ mt: 4, textAlign: "center" }}>
         <Typography variant="body2" color="text.secondary">
           {t("downloads.older_versions")}{" "}
-          <Link href="https://github.com/jmsilvadev/synapra/releases" target="_blank" rel="noopener">
+          <Link href="https://github.com/jmsilvadev/elastra/releases" target="_blank" rel="noopener">
             GitHub Releases
           </Link>
         </Typography>

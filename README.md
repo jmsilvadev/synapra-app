@@ -1,4 +1,4 @@
-# synapra-app
+# elastra-app
 
 Aplicacao React para clientes Synapra gerenciarem plano, consumo, faturamento e add-ons.
 
